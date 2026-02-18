@@ -2,15 +2,16 @@ import { google } from 'googleapis';
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-// Forzamos la lectura de la variable corregida
-const resend = new Resend(process.env.RESEND_API_KEY || '');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET
 );
 
-oauth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
+oauth2Client.setCredentials({ 
+  refresh_token: process.env.GOOGLE_REFRESH_TOKEN 
+});
 
 export async function POST(request: Request) {
   try {
@@ -19,42 +20,58 @@ export async function POST(request: Request) {
 
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
-    // 1. Intentar insertar en Calendario
+    // Calculamos el fin de la cita (1 hora después)
+    const fechaInicio = new Date(inicio);
+    const fechaFin = new Date(fechaInicio.getTime() + 60 * 60 * 1000);
+
+    // 1. Insertar en Google Calendar con Zona Horaria fija
     await calendar.events.insert({
       calendarId: process.env.GOOGLE_CALENDAR_ID,
-      sendUpdates: 'all',
       requestBody: {
         summary: `Cita: ${nombre}`,
         description: `PACIENTE: ${nombre}\nTEL: ${telefono}\nEMAIL: ${email}`,
-        start: { dateTime: new Date(inicio).toISOString(), timeZone: 'America/El_Salvador' },
-        end: { dateTime: new Date(new Date(inicio).getTime() + 3600000).toISOString(), timeZone: 'America/El_Salvador' },
+        start: { 
+          dateTime: fechaInicio.toISOString(), 
+          timeZone: 'America/El_Salvador' 
+        },
+        end: { 
+          dateTime: fechaFin.toISOString(), 
+          timeZone: 'America/El_Salvador' 
+        },
         attendees: [{ email }],
       },
     });
 
-    // 2. Intentar enviar correos (solo si la KEY existe)
+    // 2. Enviar correos de confirmación vía Resend
     if (process.env.RESEND_API_KEY) {
+      // Correo al paciente
       await resend.emails.send({
         from: 'Synapsa <onboarding@resend.dev>',
         to: email,
-        subject: 'Cita Confirmada - Synapsa',
-        html: `<p>Hola ${nombre}, tu cita ha sido reservada con éxito.</p>`
+        subject: 'Confirmación de tu cita - Synapsa',
+        html: `<p>Hola <strong>${nombre}</strong>, tu cita ha sido reservada con éxito para la fecha y hora seleccionada.</p>`
       });
 
+      // Correo a la clínica
       await resend.emails.send({
-        from: 'Sistema <onboarding@resend.dev>',
+        from: 'Sistema Synapsa <onboarding@resend.dev>',
         to: 'synapsapsicologia@gmail.com',
-        subject: `Nueva Cita: ${nombre}`,
-        html: `<p>Nueva cita agendada por ${nombre} (${telefono})</p>`
+        subject: `Nueva Cita Agendada: ${nombre}`,
+        html: `<p>Se ha registrado una nueva cita:</p>
+               <ul>
+                 <li><strong>Nombre:</strong> ${nombre}</li>
+                 <li><strong>WhatsApp:</strong> ${telefono}</li>
+                 <li><strong>Email:</strong> ${email}</li>
+                 <li><strong>Horario:</strong> ${inicio}</li>
+               </ul>`
       });
     }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    // Esto es lo que nos dirá la verdad en los logs de Netlify
-    console.error("ERROR DETECTADO:", error.message);
+    console.error("Error en el servidor:", error.message);
     return NextResponse.json({ 
-      error: "Error en el servidor", 
+      error: "Error en la reserva", 
       details: error.message 
     }, { status: 500 });
   }
