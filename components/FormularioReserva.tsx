@@ -21,7 +21,7 @@ export default function FormularioReserva() {
 
   useEffect(() => {
     if (fechaSeleccionada && !esFinDeSemana) {
-      const consultarDia = async () => {
+      const consultar = async () => {
         setCargando(true);
         try {
           const res = await fetch(`/api/disponibilidad?fecha=${fechaSeleccionada}`)
@@ -30,7 +30,7 @@ export default function FormularioReserva() {
         } catch { setHorasOcupadas([]) }
         finally { setCargando(false) }
       }
-      consultarDia()
+      consultar()
     }
   }, [fechaSeleccionada, esFinDeSemana])
 
@@ -38,56 +38,40 @@ export default function FormularioReserva() {
     e.preventDefault()
     setCargando(true)
     try {
-      if (!esFinDeSemana) {
-        const inicioIso = `${fechaSeleccionada}T${horaSeleccionada}`;
-        await fetch('/api/reservar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nombre, email, telefono, inicio: inicioIso })
-        })
-      }
-      setEnviado(true)
-    } catch (error: any) {
-      alert("Error: " + error.message)
+      const inicioIso = `${fechaSeleccionada}T${horaSeleccionada}`;
+      const res = await fetch('/api/reservar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, email, telefono, inicio: inicioIso })
+      })
+      if (res.ok) setEnviado(true)
+      else throw new Error("Error en el servidor")
+    } catch (err) {
+      alert("No se pudo completar la reserva")
     } finally { setCargando(false) }
   }
 
   if (enviado) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-white rounded-[3rem] text-center space-y-8 animate-in fade-in zoom-in duration-500 shadow-2xl">
-        <div className="text-6xl text-green-500 font-bold italic underline decoration-blue-500">¡LISTO!</div>
-        
+        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-4xl">✅</div>
         <div className="space-y-2">
-          <h2 className="text-2xl font-black italic uppercase text-slate-900 tracking-tighter">Cita Registrada</h2>
-          <p className="text-slate-500 font-medium">
-            Te esperamos el <span className="text-blue-600 font-bold">{fechaSeleccionada}</span> a las <span className="text-blue-600 font-bold">{horaSeleccionada}</span>.
-          </p>
+          <h2 className="text-3xl font-black italic uppercase text-slate-900 tracking-tighter">¡Cita Registrada!</h2>
+          <p className="text-slate-500 font-medium">Te esperamos el <span className="text-blue-600 font-bold">{fechaSeleccionada}</span>.</p>
         </div>
-
         <div className="flex flex-col w-full gap-3 max-w-xs">
-          <button 
-            onClick={() => window.location.href = '/'} 
-            className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-600 transition-all shadow-lg"
-          >
-            Volver al Inicio
-          </button>
-
-          <button 
-            onClick={() => {
-              const msg = `Hola Licda. Portillo, soy ${nombre}, acabo de agendar una cita para el ${fechaSeleccionada}.`;
-              window.open(`https://wa.me/${WHATSAPP_CLINICA}?text=${encodeURIComponent(msg)}`, '_blank');
-            }}
-            className="w-full py-4 border-2 border-[#25D366] text-[#128C7E] rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-green-50 transition-all"
-          >
-            Escribir por WhatsApp
-          </button>
+          <button onClick={() => window.location.href = '/'} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-lg">Volver al Inicio</button>
+          <button onClick={() => {
+            const msg = `Hola Licda. Portillo, soy ${nombre}, agendé para el ${fechaSeleccionada}.`;
+            window.open(`https://wa.me/${WHATSAPP_CLINICA}?text=${encodeURIComponent(msg)}`, '_blank');
+          }} className="w-full py-4 border-2 border-[#25D366] text-[#128C7E] rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-green-50">Escribir por WhatsApp</button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 min-h-[600px] bg-white relative rounded-[3rem] overflow-hidden shadow-2xl border border-slate-100">
+    <div className="grid grid-cols-1 lg:grid-cols-3 bg-white rounded-[3rem] overflow-hidden shadow-2xl border border-slate-100 relative">
       {cargando && (
         <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] z-50 flex items-center justify-center">
           <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -106,11 +90,14 @@ export default function FormularioReserva() {
             setEsFinDeSemana(d === 0 || d === 6)
             setHoraSeleccionada('')
           }}
-          dayCellDidMount={async (info) => {
+          dayCellDidMount={(info) => {
             const hoy = new Date(); hoy.setHours(0,0,0,0);
+            const d = info.date.getDay();
             if (info.date < hoy) {
-              info.el.style.opacity = '0.2';
-              info.el.style.pointerEvents = 'none';
+              info.el.style.opacity = '0.3';
+              info.el.style.backgroundColor = '#f8fafc';
+            } else if (d === 0 || d === 6) {
+              info.el.style.backgroundColor = '#f0f9ff'; // Azul fin de semana
             }
           }}
         />
@@ -119,28 +106,28 @@ export default function FormularioReserva() {
       <div className="p-10 bg-slate-50/50 flex flex-col justify-center space-y-6">
         <h3 className="text-xl font-black uppercase italic tracking-tighter text-slate-800">Tus Datos</h3>
         <form onSubmit={manejarEnvio} className="space-y-4">
-          <div className="p-4 bg-white rounded-2xl border border-blue-100 text-center font-bold text-blue-600 italic">
+          <div className="p-4 bg-white rounded-2xl border border-blue-100 text-center font-bold text-blue-600 italic shadow-sm">
             {fechaSeleccionada || 'Selecciona un día'}
           </div>
 
           {!esFinDeSemana && fechaSeleccionada && (
-            <div className="grid grid-cols-1 gap-2">
-              {horariosBase.map((hora) => {
-                const estaOcupado = horasOcupadas.some(o => o.startsWith(hora.split(':')[0]));
-                const formato12h = hora === "19:00" ? "7:00 PM" : hora === "20:00" ? "8:00 PM" : "9:00 PM";
+            <div className="flex flex-col gap-2">
+              {horariosBase.map(h => {
+                const ocupado = horasOcupadas.some(o => o.startsWith(h.split(':')[0]));
+                const formato12h = h === "19:00" ? "7:00 PM" : h === "20:00" ? "8:00 PM" : "9:00 PM";
                 return (
-                  <button key={hora} type="button" disabled={estaOcupado} onClick={() => setHoraSeleccionada(hora)}
-                    className={`py-3 rounded-xl text-[10px] font-black border-2 transition-all ${estaOcupado ? 'bg-slate-100 text-slate-300 border-slate-200' : horaSeleccionada === hora ? 'bg-blue-600 text-white border-blue-600 scale-105' : 'bg-white text-blue-600 border-blue-100 hover:border-blue-400'}`}>
-                    {estaOcupado ? 'HORARIO OCUPADO' : formato12h}
+                  <button key={h} type="button" disabled={ocupado} onClick={() => setHoraSeleccionada(h)}
+                    className={`py-3 rounded-xl text-[10px] font-black border-2 transition-all ${ocupado ? 'bg-gray-100 text-gray-300 border-gray-200 cursor-not-allowed' : horaSeleccionada === h ? 'bg-blue-600 text-white border-blue-600 scale-105 shadow-md' : 'bg-white text-blue-600 border-blue-100 hover:border-blue-400'}`}>
+                    {ocupado ? 'HORARIO OCUPADO' : formato12h}
                   </button>
-                );
+                )
               })}
             </div>
           )}
 
-          <div className="space-y-3 pt-4">
+          <div className="space-y-3">
             <input required placeholder="Nombre" className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-blue-400" value={nombre} onChange={e=>setNombre(e.target.value)} />
-            <input required placeholder="WhatsApp (Ej: 75386551)" className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-blue-400" value={telefono} onChange={e=>setTelefono(e.target.value)} />
+            <input required placeholder="WhatsApp" className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-blue-400" value={telefono} onChange={e=>setTelefono(e.target.value)} />
             <input required type="email" placeholder="Correo" className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-blue-400" value={email} onChange={e=>setEmail(e.target.value)} />
           </div>
 
