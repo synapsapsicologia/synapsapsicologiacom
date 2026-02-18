@@ -38,22 +38,41 @@ export default function FormularioReserva() {
     e.preventDefault()
     setCargando(true)
     try {
+      // 1. Intentar proceso en el servidor (Google Calendar + Resend)
       if (!esFinDeSemana) {
-        await fetch('/api/reservar', {
+        const response = await fetch('/api/reservar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nombre, email, telefono, inicio: `${fechaSeleccionada}T${horaSeleccionada}:00` })
+          body: JSON.stringify({ 
+            nombre, 
+            email, 
+            telefono, 
+            inicio: `${fechaSeleccionada}T${horaSeleccionada}:00` 
+          })
         })
+
+        // Si la API falla (Error 500), lanzamos el error para ir al catch
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.details || "Error al procesar la reserva en el servidor.")
+        }
       }
+
+      // 2. Si el servidor respondió OK, procedemos con WhatsApp y éxito visual
       setEnviado(true)
       const hora12h = horaSeleccionada === "19:00" ? "7:00 PM" : horaSeleccionada === "20:00" ? "8:00 PM" : "9:00 PM";
       const msg = esFinDeSemana 
         ? `Hola Licda. Portillo, deseo solicitar una cita en FIN DE SEMANA para el día ${fechaSeleccionada}. Mi nombre es ${nombre}.`
         : `Hola Licda. Portillo, mi nombre es ${nombre}. He reservado para el día ${fechaSeleccionada} a las ${hora12h}.`;
+      
       window.open(`https://wa.me/${WHATSAPP_CLINICA}?text=${encodeURIComponent(msg)}`, '_blank')
-    } catch (error) {
-      alert("Error al procesar la reserva.")
-    } finally { setCargando(false) }
+      
+    } catch (error: any) {
+      console.error("Error en reserva:", error)
+      alert("⚠️ Hubo un problema: " + error.message)
+    } finally { 
+      setCargando(false) 
+    }
   }
 
   if (enviado) {
@@ -61,7 +80,7 @@ export default function FormularioReserva() {
       <div className="flex flex-col items-center justify-center p-16 bg-white rounded-[3rem] text-center space-y-6 animate-in fade-in zoom-in duration-500 border border-slate-100 shadow-xl">
         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-4xl animate-bounce">✅</div>
         <h2 className="text-2xl font-black italic uppercase text-slate-900 leading-tight">¡Cita Confirmada!</h2>
-        <p className="text-slate-500 italic">Tu espacio para el <span className="text-blue-600 font-bold">{fechaSeleccionada}</span> ha sido registrado.</p>
+        <p className="text-slate-500 italic">Tu espacio para el <span className="text-blue-600 font-bold">{fechaSeleccionada}</span> ha sido registrado y se enviaron los correos de confirmación.</p>
         <button onClick={() => window.open(`https://wa.me/${WHATSAPP_CLINICA}`, '_blank')} className="px-8 py-4 bg-[#25D366] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-transform hover:scale-105">Ir al WhatsApp</button>
       </div>
     )
@@ -97,7 +116,7 @@ export default function FormularioReserva() {
             }
 
             if (d === 0 || d === 6) {
-              info.el.style.backgroundColor = '#f0f9ff'; // Azul muy claro (Fin de semana)
+              info.el.style.backgroundColor = '#f0f9ff';
               info.el.innerHTML += '<div style="font-size:8px; color:#0369a1; font-weight:bold; margin-top:5px; text-align:center">FIN DE SEMANA</div>';
             } else {
               const res = await fetch(`/api/disponibilidad?fecha=${info.date.toISOString().split('T')[0]}`);
@@ -106,38 +125,18 @@ export default function FormularioReserva() {
               const disponibles = horariosBase.length - ocupados;
 
               if (disponibles === 3) { 
-                info.el.style.backgroundColor = '#f0fdf4'; // Verde (Libre)
+                info.el.style.backgroundColor = '#f0fdf4';
                 info.el.style.borderTop = '4px solid #22c55e';
               } else if (disponibles > 0) { 
-                info.el.style.backgroundColor = '#fffbeb'; // Naranja/Amarillo (Pocos cupos)
+                info.el.style.backgroundColor = '#fffbeb';
                 info.el.style.borderTop = '4px solid #f59e0b';
               } else { 
-                info.el.style.backgroundColor = '#fef2f2'; // Rojo (Lleno)
+                info.el.style.backgroundColor = '#fef2f2';
                 info.el.style.borderTop = '4px solid #ef4444';
               }
             }
           }}
         />
-        
-        {/* LEYENDA DE COLORES */}
-        <div className="mt-6 flex flex-wrap gap-4 justify-center border-t pt-4">
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-[#f0fdf4] border-t-2 border-[#22c55e]"></div>
-                <span className="text-[9px] font-bold uppercase text-slate-500">Disponible</span>
-            </div>
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-[#fffbeb] border-t-2 border-[#f59e0b]"></div>
-                <span className="text-[9px] font-bold uppercase text-slate-500">Últimos Cupos</span>
-            </div>
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-[#fef2f2] border-t-2 border-[#ef4444]"></div>
-                <span className="text-[9px] font-bold uppercase text-slate-500">Agotado</span>
-            </div>
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-[#f0f9ff]"></div>
-                <span className="text-[9px] font-bold uppercase text-slate-500">Fin de Semana</span>
-            </div>
-        </div>
       </div>
 
       <div className="p-10 bg-slate-50/50 flex flex-col justify-center space-y-6">
@@ -146,12 +145,6 @@ export default function FormularioReserva() {
           <div className="p-4 bg-white rounded-2xl border border-blue-100 text-center font-bold text-blue-600 italic">
             {fechaSeleccionada || 'Toca un día en el calendario'}
           </div>
-
-          {esFinDeSemana && fechaSeleccionada && (
-            <div className="p-4 bg-blue-600 text-white rounded-2xl text-[10px] font-bold shadow-lg animate-pulse">
-              📅 LOS FINES DE SEMANA SE COORDINAN DIRECTO POR WHATSAPP.
-            </div>
-          )}
 
           {!esFinDeSemana && fechaSeleccionada && (
             <div className="grid grid-cols-1 gap-2">
@@ -177,7 +170,7 @@ export default function FormularioReserva() {
 
           <button type="submit" disabled={(!esFinDeSemana && !horaSeleccionada) || !nombre || !fechaSeleccionada}
             className="w-full py-5 bg-[#25D366] text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 disabled:opacity-50 disabled:grayscale transition-all">
-            Confirmar y enviar WhatsApp
+            {cargando ? 'Procesando...' : 'Confirmar Reserva'}
           </button>
         </form>
       </div>
