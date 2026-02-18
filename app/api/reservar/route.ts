@@ -13,7 +13,9 @@ oauth2Client.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN })
 
 export async function POST(request: Request) {
   try {
-    const { nombre, email, telefono, inicio } = await request.json();
+    const body = await request.json();
+    const { nombre, email, telefono, inicio } = body;
+
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
     // 1. Google Calendar
@@ -35,26 +37,28 @@ export async function POST(request: Request) {
       },
     });
 
-    // 2. Enviar correos con Resend
+    // 2. Correos con Resend
     if (process.env.RESEND_API_KEY) {
+      // Al paciente
       await resend.emails.send({
-        from: 'Synapsa Clínica <onboarding@resend.dev>',
+        from: 'Synapsa <onboarding@resend.dev>',
         to: email,
         subject: 'Confirmación de tu cita - Synapsa',
-        html: `<p>Hola ${nombre}, tu cita ha sido reservada para las ${new Date(inicio).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', hour12: true })}.</p>`
+        html: `<p>Hola <strong>${nombre}</strong>, tu cita ha sido reservada con éxito.</p>`
       });
 
+      // A ti (Synapsa)
       await resend.emails.send({
-        from: 'Sistema Synapsa <onboarding@resend.dev>',
+        from: 'Sistema <onboarding@resend.dev>',
         to: 'synapsapsicologia@gmail.com',
         subject: `Nueva Cita: ${nombre}`,
-        html: `<p>Nueva cita de ${nombre} (${telefono}) para las ${new Date(inicio).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', hour12: true })}.</p>`
+        html: `<p>Nueva cita de ${nombre} para el ${new Date(inicio).toLocaleString('es-SV')}</p>`
       });
     }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Error completo:", error);
+    return NextResponse.json({ error: error.message || "Error desconocido" }, { status: 500 });
   }
 }
