@@ -16,7 +16,7 @@ export default function FormularioReserva() {
   const [cargando, setCargando] = useState(false)
   const [enviado, setEnviado] = useState(false)
 
-  const horariosBase = ["19:00", "20:00", "21:00", "22:00"]
+  const horariosBase = ["19:00", "20:00", "21:00"]
   const WHATSAPP_CLINICA = "50375386551"
 
   useEffect(() => {
@@ -46,10 +46,10 @@ export default function FormularioReserva() {
         })
       }
       setEnviado(true)
+      const hora12h = horaSeleccionada === "19:00" ? "7:00 PM" : horaSeleccionada === "20:00" ? "8:00 PM" : "9:00 PM";
       const msg = esFinDeSemana 
         ? `Hola Licda. Portillo, deseo solicitar una cita en FIN DE SEMANA para el día ${fechaSeleccionada}. Mi nombre es ${nombre}.`
-        : `Hola Licda. Portillo, mi nombre es ${nombre}. He reservado para el día ${fechaSeleccionada} a las ${horaSeleccionada} PM.`;
-      
+        : `Hola Licda. Portillo, mi nombre es ${nombre}. He reservado para el día ${fechaSeleccionada} a las ${hora12h}.`;
       window.open(`https://wa.me/${WHATSAPP_CLINICA}?text=${encodeURIComponent(msg)}`, '_blank')
     } catch (error) {
       alert("Error al procesar la reserva.")
@@ -61,9 +61,8 @@ export default function FormularioReserva() {
       <div className="flex flex-col items-center justify-center p-16 bg-white rounded-[3rem] text-center space-y-6 animate-in fade-in zoom-in duration-500 border border-slate-100 shadow-xl">
         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-4xl animate-bounce">✅</div>
         <h2 className="text-2xl font-black italic uppercase text-slate-900 leading-tight">¡Cita Confirmada!</h2>
-        <p className="text-slate-500 italic">Tu espacio para el <span className="text-blue-600 font-bold">{fechaSeleccionada}</span> ha sido registrado. Cualquier duda puedes consultar por WhatsApp.</p>
-        <button onClick={() => window.open(`https://wa.me/${WHATSAPP_CLINICA}`, '_blank')} className="px-8 py-4 bg-[#25D366] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-transform hover:scale-105">WhatsApp de la Clínica</button>
-        <button onClick={() => window.location.reload()} className="text-[10px] font-black uppercase tracking-widest text-slate-400 underline pt-4">Agendar otra cita</button>
+        <p className="text-slate-500 italic">Tu espacio para el <span className="text-blue-600 font-bold">{fechaSeleccionada}</span> ha sido registrado.</p>
+        <button onClick={() => window.open(`https://wa.me/${WHATSAPP_CLINICA}`, '_blank')} className="px-8 py-4 bg-[#25D366] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-transform hover:scale-105">Ir al WhatsApp</button>
       </div>
     )
   }
@@ -90,51 +89,95 @@ export default function FormularioReserva() {
           dayCellDidMount={async (info) => {
             const d = info.date.getDay();
             const hoy = new Date(); hoy.setHours(0,0,0,0);
+            
             if (info.date < hoy) {
-              info.el.style.opacity = '0.3';
+              info.el.style.opacity = '0.2';
               info.el.style.pointerEvents = 'none';
               return;
             }
+
             if (d === 0 || d === 6) {
-              info.el.style.backgroundColor = '#eff6ff';
+              info.el.style.backgroundColor = '#f0f9ff'; // Azul muy claro (Fin de semana)
+              info.el.innerHTML += '<div style="font-size:8px; color:#0369a1; font-weight:bold; margin-top:5px; text-align:center">FIN DE SEMANA</div>';
             } else {
               const res = await fetch(`/api/disponibilidad?fecha=${info.date.toISOString().split('T')[0]}`);
               const data = await res.json();
               const ocupados = data.ocupados?.length || 0;
-              if (ocupados === 0) { info.el.style.backgroundColor = '#dcfce7'; info.el.style.borderLeft = '4px solid #22c55e'; }
-              else if (ocupados < horariosBase.length) { info.el.style.backgroundColor = '#f1f5f9'; info.el.style.borderLeft = '4px solid #94a3b8'; }
-              else { info.el.style.backgroundColor = '#fee2e2'; info.el.style.borderLeft = '4px solid #ef4444'; }
+              const disponibles = horariosBase.length - ocupados;
+
+              if (disponibles === 3) { 
+                info.el.style.backgroundColor = '#f0fdf4'; // Verde (Libre)
+                info.el.style.borderTop = '4px solid #22c55e';
+              } else if (disponibles > 0) { 
+                info.el.style.backgroundColor = '#fffbeb'; // Naranja/Amarillo (Pocos cupos)
+                info.el.style.borderTop = '4px solid #f59e0b';
+              } else { 
+                info.el.style.backgroundColor = '#fef2f2'; // Rojo (Lleno)
+                info.el.style.borderTop = '4px solid #ef4444';
+              }
             }
           }}
         />
+        
+        {/* LEYENDA DE COLORES */}
+        <div className="mt-6 flex flex-wrap gap-4 justify-center border-t pt-4">
+            <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-[#f0fdf4] border-t-2 border-[#22c55e]"></div>
+                <span className="text-[9px] font-bold uppercase text-slate-500">Disponible</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-[#fffbeb] border-t-2 border-[#f59e0b]"></div>
+                <span className="text-[9px] font-bold uppercase text-slate-500">Últimos Cupos</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-[#fef2f2] border-t-2 border-[#ef4444]"></div>
+                <span className="text-[9px] font-bold uppercase text-slate-500">Agotado</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="w-3 h-3 bg-[#f0f9ff]"></div>
+                <span className="text-[9px] font-bold uppercase text-slate-500">Fin de Semana</span>
+            </div>
+        </div>
       </div>
 
       <div className="p-10 bg-slate-50/50 flex flex-col justify-center space-y-6">
-        <h3 className="text-xl font-black uppercase italic tracking-tighter">Detalles</h3>
+        <h3 className="text-xl font-black uppercase italic tracking-tighter">Detalles de cita</h3>
         <form onSubmit={manejarEnvio} className="space-y-4">
-          <div className="p-4 bg-white rounded-2xl border border-blue-100 text-center font-bold text-blue-600 italic">{fechaSeleccionada || 'Selecciona un día'}</div>
+          <div className="p-4 bg-white rounded-2xl border border-blue-100 text-center font-bold text-blue-600 italic">
+            {fechaSeleccionada || 'Toca un día en el calendario'}
+          </div>
+
           {esFinDeSemana && fechaSeleccionada && (
-            <div className="p-4 bg-blue-600 text-white rounded-2xl text-[10px] font-bold shadow-lg">⚠️ Citas en fin de semana se coordinan por WhatsApp.</div>
+            <div className="p-4 bg-blue-600 text-white rounded-2xl text-[10px] font-bold shadow-lg animate-pulse">
+              📅 LOS FINES DE SEMANA SE COORDINAN DIRECTO POR WHATSAPP.
+            </div>
           )}
+
           {!esFinDeSemana && fechaSeleccionada && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
+              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Selecciona una hora:</label>
               {horariosBase.map((hora) => {
                 const estaOcupado = horasOcupadas.some(o => o.startsWith(hora.split(':')[0]));
+                const formato12h = hora === "19:00" ? "7:00 PM" : hora === "20:00" ? "8:00 PM" : "9:00 PM";
                 return (
                   <button key={hora} type="button" disabled={estaOcupado} onClick={() => setHoraSeleccionada(hora)}
-                    className={`py-3 rounded-xl text-[10px] font-black border-2 transition-all ${estaOcupado ? 'bg-red-50 text-red-300 border-red-100' : horaSeleccionada === hora ? 'bg-blue-600 text-white border-blue-600' : 'bg-green-500 text-white border-green-400'}`}>
-                    {estaOcupado ? 'LLENO' : `${hora} PM`}
+                    className={`py-3 rounded-xl text-[10px] font-black border-2 transition-all ${estaOcupado ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed' : horaSeleccionada === hora ? 'bg-blue-600 text-white border-blue-600 scale-105 shadow-md' : 'bg-white text-blue-600 border-blue-100 hover:border-blue-400'}`}>
+                    {estaOcupado ? 'HORARIO OCUPADO' : formato12h}
                   </button>
                 );
               })}
             </div>
           )}
-          <input required placeholder="Tu nombre" className="w-full p-4 rounded-2xl border bg-white text-sm outline-none" value={nombre} onChange={e=>setNombre(e.target.value)} />
-          <input required placeholder="WhatsApp" className="w-full p-4 rounded-2xl border bg-white text-sm outline-none" value={telefono} onChange={e=>setTelefono(e.target.value)} />
-          <input required type="email" placeholder="Email" className="w-full p-4 rounded-2xl border bg-white text-sm outline-none" value={email} onChange={e=>setEmail(e.target.value)} />
+
+          <div className="space-y-3 pt-4">
+            <input required placeholder="Nombre completo" className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-blue-400 transition-colors" value={nombre} onChange={e=>setNombre(e.target.value)} />
+            <input required placeholder="Número de WhatsApp" className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-blue-400 transition-colors" value={telefono} onChange={e=>setTelefono(e.target.value)} />
+            <input required type="email" placeholder="Correo electrónico" className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm outline-none focus:border-blue-400 transition-colors" value={email} onChange={e=>setEmail(e.target.value)} />
+          </div>
+
           <button type="submit" disabled={(!esFinDeSemana && !horaSeleccionada) || !nombre || !fechaSeleccionada}
-            className="w-full py-5 bg-[#25D366] text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all">
-            Confirmar Reserva
+            className="w-full py-5 bg-[#25D366] text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 disabled:opacity-50 disabled:grayscale transition-all">
+            Confirmar y enviar WhatsApp
           </button>
         </form>
       </div>

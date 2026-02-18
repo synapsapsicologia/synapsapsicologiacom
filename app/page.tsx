@@ -14,14 +14,14 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      {/* NAVBAR ESTÁTICO (Se queda al inicio de la página) */}
-      <nav className="w-full p-6 bg-white border-b border-slate-100 flex justify-between items-center">
+      {/* NAVBAR CON EFECTO VIDRIO */}
+      <nav className="sticky top-0 z-50 w-full p-4 bg-white/80 backdrop-blur-md border-b border-slate-100 flex justify-between items-center">
         <div className="text-2xl font-black italic uppercase tracking-tighter text-slate-900">
           Synapsa<span className="text-blue-600">.</span>
         </div>
         <button 
           onClick={irAPerfil} 
-          className="px-6 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+          className="px-6 py-2.5 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all"
         >
           Perfil Profesional
         </button>
@@ -106,6 +106,20 @@ export default function Home() {
           © 2026 Synapsa Psicología • San Salvador, El Salvador
         </p>
       </footer>
+
+      {/* BOTÓN FLOTANTE WHATSAPP */}
+      <a 
+        href={`https://wa.me/${WHATSAPP_CLINICA}`} 
+        target="_blank" 
+        className="fixed bottom-8 right-8 z-50 bg-[#25D366] p-4 rounded-full shadow-2xl hover:scale-110 transition-transform active:scale-90 flex items-center justify-center group"
+      >
+        <span className="absolute right-full mr-4 bg-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-slate-100">
+          ¿Necesitas ayuda?
+        </span>
+        <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.588-5.946 0-6.556 5.332-11.888 11.888-11.888 3.176 0 6.161 1.237 8.404 3.48s3.481 5.229 3.481 8.406c0 6.556-5.332 11.888-11.888 11.888-2.003 0-3.963-.505-5.7-1.467l-6.305 1.702zm6.39-4.043c1.511.897 3.278 1.371 5.081 1.371 5.433 0 9.851-4.417 9.851-9.851 0-2.631-1.024-5.105-2.884-6.965s-4.333-2.884-6.966-2.884c-5.433 0-9.851 4.418-9.851 9.851 0 1.935.567 3.824 1.639 5.454l-1.074 3.921 4.022-1.087z"/>
+        </svg>
+      </a>
     </div>
   )
 }
