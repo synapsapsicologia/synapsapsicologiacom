@@ -62,3 +62,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || "Error desconocido" }, { status: 500 });
   }
 }
+
+// Actualización forzada
