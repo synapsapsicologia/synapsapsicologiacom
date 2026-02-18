@@ -60,7 +60,16 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Error completo:", error);
     return NextResponse.json({ error: error.message || "Error desconocido" }, { status: 500 });
+ 
   }
+  } catch (error: any) {
+    // Esto imprimirá el error real en los logs de Netlify para que podamos leerlo
+    console.error("DETALLE DEL ERROR:", error.response?.data || error.message);
+    return NextResponse.json(
+      { error: "Error interno", details: error.message }, 
+      { status: 500 }
+    );
 }
+
 
 // Actualización forzada
