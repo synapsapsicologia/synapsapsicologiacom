@@ -6,27 +6,32 @@ export async function GET(request: Request) {
   const fecha = searchParams.get('fecha');
 
   try {
-    // Limpieza profunda de variables
     const clientEmail = process.env.GOOGLE_CLIENT_EMAIL?.trim();
     const calendarId = process.env.GOOGLE_CALENDAR_ID?.trim();
-    
-    // Esta línea elimina comillas accidentales y arregla los saltos de línea
     const rawKey = process.env.GOOGLE_PRIVATE_KEY || '';
+    
+    // Limpieza profunda de la llave
     const privateKey = rawKey
-      .replace(/^"|"$/g, '') // Quita comillas al inicio y final
-      .replace(/\\n/g, '\n') // Convierte \n en saltos reales
+      .replace(/^["']|["']$/g, '') 
+      .replace(/\\n/g, '\n')       
       .trim();
 
+    // LOG DE VERIFICACIÓN (Míralo en tu terminal de VS Code)
+    console.log("¿Email cargado?:", !!clientEmail);
+    console.log("¿Key cargada?:", privateKey.includes("BEGIN PRIVATE KEY"));
+
     if (!clientEmail || !privateKey) {
-      throw new Error("Credenciales incompletas en .env.local");
+      return NextResponse.json({ error: "Credenciales faltantes en .env.local" }, { status: 500 });
     }
 
-    const auth = new google.auth.JWT(
-      clientEmail,
-      undefined,
-      privateKey,
-      ['https://www.googleapis.com/auth/calendar.readonly']
-    );
+    // CAMBIO AQUÍ: Usamos el objeto de configuración explícito
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        client_email: clientEmail,
+        private_key: privateKey,
+      },
+      scopes: ['https://www.googleapis.com/auth/calendar.readonly'],
+    });
 
     const calendar = google.calendar({ version: 'v3', auth });
 
@@ -47,7 +52,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ ocupados });
   } catch (error: any) {
-    console.error("Error detectado:", error.message);
+    // Si Google responde con error, aquí veremos la razón real
+    console.error("ERROR DETALLADO:", error.response?.data || error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
