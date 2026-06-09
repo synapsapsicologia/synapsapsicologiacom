@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sage-50: #f4f7f5;
+  --color-sage-100: #e3eae5;
+  --color-sage-200: #c9d8cf;
+  --color-sage-300: #a7c0b2;
+  --color-sage-400: #82a392;
+  --color-sage-500: #6e8b7e; /* Sage suave */
+  --color-sage-650: #577d6c; 
+  --color-sage-600: #5f8575; /* Sage principal */
+  --color-sage-700: #4d6d60; /* Sage oscuro */
+  --color-sage-800: #3b5349;
+  --color-sage-900: #25342e;
+  
+  --color-cream-50: #fefefc;
+  --color-cream-100: #faf9f6; /* Crema principal */
+  --color-cream-150: #f7f5ee;
+  --color-cream-200: #f2eee3;
+  --color-cream-300: #e4dccb;
+  --color-cream-400: #cdc2a7;
+  
+  --color-charcoal-50: #f7f7f7;
+  --color-charcoal-100: #e7e6e5;
+  --color-charcoal-400: #7c7672;
+  --color-charcoal-700: #4e4a46;
+  --color-charcoal-800: #383533;
+  --color-charcoal-900: #292524; /* Carbón principal */
+  
+  --color-olive-50: #f6f8f5;
+  --color-olive-100: #e8ede5;
+  --color-olive-550: #889e83;
+  --color-olive-600: #7b8e76; /* Oliva suave */
+  --color-olive-700: #63755e;
+}
+
+:root {
+  --background: #faf9f6;
+  --foreground: #292524;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c9d8cf;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a7c0b2;
+}
