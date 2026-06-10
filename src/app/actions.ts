@@ -1,5 +1,6 @@
 'use server';
 
+import { cookies } from 'next/headers';
 import * as db from '../lib/db/client';
 import { validarDisponibilidadCita, obtenerSlotsParaFecha } from '../lib/utils/scheduler';
 import { 
@@ -43,14 +44,36 @@ export async function reservarCitaAccion(data: {
     }
 
     // 2. Guardar registro en db.json
-    // Crear o recuperar paciente
-    const paciente = db.createPaciente({
-      nombreCompleto: data.nombreCompleto,
-      email: data.email,
-      telefono: data.telefono,
-      fechaNacimiento: data.fechaNacimiento,
-      notasHistorial: `Paciente registrado desde el portal público de reserva. Motivo inicial: ${data.motivoConsulta}`
-    });
+    // Buscar si el paciente ya existe por correo electrónico o por teléfono (normalizado)
+    const pacientesExistentes = db.getPacientes();
+    const normalizarTelefono = (t: string) => t.replace(/[^\d]/g, '');
+    const telefonoBuscado = normalizarTelefono(data.telefono);
+
+    let paciente = pacientesExistentes.find(p => 
+      p.email.toLowerCase() === data.email.toLowerCase() || 
+      normalizarTelefono(p.telefono) === telefonoBuscado
+    );
+
+    if (paciente) {
+      // El paciente ya existe: concatenar/actualizar la información del nuevo triage en su historial
+      const nuevaNota = `[Nueva cita reservada para ${data.fecha} a las ${data.horaInicio}]: Motivo: ${data.motivoConsulta}`;
+      const notasActualizadas = paciente.notasHistorial
+        ? `${paciente.notasHistorial}\n\n${nuevaNota}`
+        : nuevaNota;
+      
+      paciente = db.updatePaciente(paciente.id, {
+        notasHistorial: notasActualizadas
+      });
+    } else {
+      // El paciente no existe: registrar nuevo paciente normalmente
+      paciente = db.createPaciente({
+        nombreCompleto: data.nombreCompleto,
+        email: data.email,
+        telefono: data.telefono,
+        fechaNacimiento: data.fechaNacimiento,
+        notasHistorial: `Paciente registrado desde el portal público de reserva. Motivo inicial: ${data.motivoConsulta}`
+      });
+    }
 
     // Calcular hora de fin (1 hora estándar)
     const [h, m] = data.horaInicio.split(':').map(Number);
@@ -375,18 +398,21 @@ export async function actualizarPacienteAccion(pacienteId: string, data: {
   }
 }
 
-/**
- * Obtiene el listado completo de disponibilidad y días no laborables
- */
 export async function getCalendarioConfigAccion() {
   try {
+    const citas = db.getCitas().filter(c => c.estado !== 'cancelada');
+    const citasPorFecha: Record<string, number> = {};
+    for (const c of citas) {
+      citasPorFecha[c.fecha] = (citasPorFecha[c.fecha] || 0) + 1;
+    }
     return {
       disponibilidad: db.getDisponibilidad(),
-      diasNoLaborables: db.getDiasNoLaborables()
+      diasNoLaborables: db.getDiasNoLaborables(),
+      citasPorFecha
     };
   } catch (error) {
     console.error('Error al obtener configuración de calendario:', error);
-    return { disponibilidad: [], diasNoLaborables: [] };
+    return { disponibilidad: [], diasNoLaborables: [], citasPorFecha: {} };
   }
 }
 
@@ -426,5 +452,42 @@ export async function eliminarDiaNoLaborableAccion(fecha: string) {
   } catch (error: any) {
     console.error('Error al eliminar día no laborable:', error);
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Inicia sesión para el administrador
+ */
+export async function loginAdminAccion(usuario: string, contrasenia: string) {
+  try {
+    if (usuario === 'admin' && contrasenia === '!SeleyEdu2804@') {
+      const cookieStore = await cookies();
+      cookieStore.set('admin_session', 'true', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 24, // 1 día de sesión
+        path: '/'
+      });
+      return { success: true };
+    }
+    return { success: false, error: 'Usuario o contraseña incorrectos.' };
+  } catch (error: any) {
+    console.error('Error en loginAdminAccion:', error);
+    return { success: false, error: 'Error al procesar la autenticación.' };
+  }
+}
+
+/**
+ * Cierra la sesión del administrador
+ */
+export async function logoutAdminAccion() {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete('admin_session');
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error en logoutAdminAccion:', error);
+    return { success: false, error: 'Error al cerrar la sesión.' };
   }
 }

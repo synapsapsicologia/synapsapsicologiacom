@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   Brain, 
   LayoutDashboard, 
@@ -11,8 +11,10 @@ import {
   ExternalLink, 
   Menu, 
   X,
-  UserCircle
+  UserCircle,
+  LogOut
 } from 'lucide-react';
+import { logoutAdminAccion } from '../actions';
 
 export default function AdminLayout({
   children,
@@ -20,13 +22,25 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await logoutAdminAccion();
+    router.push('/admin/login');
+    router.refresh();
+  };
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Pacientes', href: '/admin/pacientes', icon: Users },
     { name: 'Disponibilidad', href: '/admin/disponibilidad', icon: Calendar },
   ];
+
+  // Si es la página de login, renderizar sin barra lateral
+  if (pathname === '/admin/login') {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex-1 bg-cream-100 min-h-screen flex flex-col md:flex-row">
@@ -91,7 +105,7 @@ export default function AdminLayout({
               })}
             </nav>
 
-            <div className="border-t border-cream-200 pt-4 mt-auto">
+            <div className="border-t border-cream-200 pt-4 mt-auto space-y-1">
               <Link
                 href="/"
                 className="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold text-charcoal-700 hover:bg-cream-50 hover:text-charcoal-900 transition"
@@ -99,6 +113,13 @@ export default function AdminLayout({
                 <ExternalLink className="w-5 h-5 text-charcoal-400" />
                 <span>Ver Portal Público</span>
               </Link>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-700 hover:bg-red-50 hover:text-red-950 transition text-left cursor-pointer"
+              >
+                <LogOut className="w-5 h-5 text-red-500" />
+                <span>Cerrar Sesión</span>
+              </button>
             </div>
           </div>
         </div>
@@ -147,7 +168,7 @@ export default function AdminLayout({
           })}
         </nav>
 
-        <div className="border-t border-cream-200 pt-4 mt-auto">
+        <div className="border-t border-cream-200 pt-4 mt-auto space-y-1">
           <Link
             href="/"
             className="flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold text-charcoal-700 hover:bg-cream-50 hover:text-charcoal-900 transition"
@@ -155,6 +176,13 @@ export default function AdminLayout({
             <ExternalLink className="w-4.5 h-4.5 text-charcoal-400" />
             <span>Portal de Reserva</span>
           </Link>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-semibold text-red-700 hover:bg-red-50 hover:text-red-950 transition text-left cursor-pointer"
+          >
+            <LogOut className="w-4.5 h-4.5 text-red-500" />
+            <span>Cerrar Sesión</span>
+          </button>
         </div>
       </aside>
 

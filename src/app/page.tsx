@@ -27,9 +27,14 @@ import { Slot } from '../lib/utils/scheduler';
 
 export default function BookingPage() {
   // Configuración de Calendario desde la base de datos
-  const [config, setConfig] = useState<{ disponibilidad: any[]; diasNoLaborables: string[] }>({
+  const [config, setConfig] = useState<{
+    disponibilidad: any[];
+    diasNoLaborables: string[];
+    citasPorFecha?: Record<string, number>;
+  }>({
     disponibilidad: [],
-    diasNoLaborables: []
+    diasNoLaborables: [],
+    citasPorFecha: {}
   });
 
   // Cargar configuración de feriados y días bloqueados al iniciar
@@ -211,7 +216,7 @@ export default function BookingPage() {
               <Brain className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-charcoal-900 tracking-tight">Selena Portillo Gálvez</h1>
+              <h1 className="text-lg font-bold text-charcoal-900 tracking-tight">Selena Gálvez</h1>
               <p className="text-[10px] text-sage-600 font-semibold tracking-wider uppercase">Psicoterapia Online</p>
             </div>
           </div>
@@ -307,7 +312,7 @@ export default function BookingPage() {
             {/* NUEVO HEADLINE DE IMPACTO */}
             <div className="text-center max-w-3xl mx-auto mb-10 mt-4">
               <span className="text-[11px] font-bold text-sage-700 bg-sage-100 py-1 px-3.5 rounded-full uppercase tracking-widest border border-sage-200">
-                Psicología Clínica y Forense
+                Psicología Clínica
               </span>
               
               <h2 className="text-4xl md:text-5xl font-black text-sage-700 mt-5 mb-3 tracking-tight italic uppercase">
@@ -321,36 +326,57 @@ export default function BookingPage() {
 
             {/* FLUJO DE CUESTIONARIO INTERACTIVO (PASOS 1, 2 Y 3) */}
             {pasoTriage === 1 && (
-              <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-xl p-8 border border-cream-200 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="flex items-center space-x-2 text-sage-600 mb-2">
-                  <Heart className="w-4 h-4 fill-current" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Cuestionario Previo - Paso 1 de 3</span>
+              <div className="max-w-xl mx-auto space-y-6">
+                {/* Banner de acceso rápido para pacientes recurrentes */}
+                <div className="bg-gradient-to-r from-sage-50 to-cream-50 border border-sage-200 rounded-2xl p-6 shadow-md text-center animate-in fade-in duration-300">
+                  <h4 className="text-sm font-bold text-charcoal-900 mb-1">¿Ya eres paciente de Selena Gálvez?</h4>
+                  <p className="text-xs text-charcoal-700 mb-4 font-medium">Agenda tu cita de seguimiento directamente sin volver a completar el cuestionario.</p>
+                  <button
+                    onClick={() => {
+                      setTriageParaQuien('Paciente Recurrente');
+                      setTriageTipoProceso('Sesión de Seguimiento');
+                      setTriageMotivo('Seguimiento');
+                      setMotivoConsultaDetalle('Paciente Recurrente - Agenda Directa');
+                      setPasoTriage(4);
+                    }}
+                    type="button"
+                    className="inline-flex items-center justify-center bg-sage-600 hover:bg-sage-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm shadow-sm transition-all duration-200 cursor-pointer"
+                  >
+                    ¿Ya eres paciente? Agenda tu cita aquí
+                  </button>
                 </div>
-                <h3 className="text-xl font-bold text-charcoal-900 mb-6">¿Para quién es la sesión de terapia?</h3>
-                
-                <div className="space-y-4">
-                  <button
-                    onClick={() => { setTriageParaQuien('Para mí'); setPasoTriage(2); }}
-                    type="button"
-                    className="w-full text-left p-5 rounded-xl border border-cream-250 bg-cream-50/20 hover:border-sage-500 hover:bg-sage-50/10 transition-all duration-200 flex items-center justify-between group"
-                  >
-                    <div>
-                      <span className="font-bold text-charcoal-900 block text-sm">Para mí</span>
-                      <span className="text-xs text-charcoal-700 mt-1 block">La sesión es para mi propio proceso de desarrollo personal.</span>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-charcoal-400 group-hover:text-sage-600 transition" />
-                  </button>
-                  <button
-                    onClick={() => { setTriageParaQuien('Para otra persona'); setPasoTriage(2); }}
-                    type="button"
-                    className="w-full text-left p-5 rounded-xl border border-cream-250 bg-cream-50/20 hover:border-sage-500 hover:bg-sage-50/10 transition-all duration-200 flex items-center justify-between group"
-                  >
-                    <div>
-                      <span className="font-bold text-charcoal-900 block text-sm">Para otra persona</span>
-                      <span className="text-xs text-charcoal-700 mt-1 block">Deseo agendar la cita para mi hijo/a, pareja, familiar o amigo.</span>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-charcoal-400 group-hover:text-sage-600 transition" />
-                  </button>
+
+                <div className="bg-white rounded-2xl shadow-xl p-8 border border-cream-200 animate-in fade-in duration-300">
+                  <div className="flex items-center space-x-2 text-sage-600 mb-2">
+                    <Heart className="w-4 h-4 fill-current" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Cuestionario Previo - Paso 1 de 3</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-charcoal-900 mb-6">¿Para quién es la sesión de terapia?</h3>
+                  
+                  <div className="space-y-4">
+                    <button
+                      onClick={() => { setTriageParaQuien('Para mí'); setPasoTriage(2); }}
+                      type="button"
+                      className="w-full text-left p-5 rounded-xl border border-cream-250 bg-cream-50/20 hover:border-sage-500 hover:bg-sage-50/10 transition-all duration-200 flex items-center justify-between group"
+                    >
+                      <div>
+                        <span className="font-bold text-charcoal-900 block text-sm">Para mí</span>
+                        <span className="text-xs text-charcoal-700 mt-1 block">La sesión es para mi propio proceso de desarrollo personal.</span>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-charcoal-400 group-hover:text-sage-600 transition" />
+                    </button>
+                    <button
+                      onClick={() => { setTriageParaQuien('Para otra persona'); setPasoTriage(2); }}
+                      type="button"
+                      className="w-full text-left p-5 rounded-xl border border-cream-250 bg-cream-50/20 hover:border-sage-500 hover:bg-sage-50/10 transition-all duration-200 flex items-center justify-between group"
+                    >
+                      <div>
+                        <span className="font-bold text-charcoal-900 block text-sm">Para otra persona</span>
+                        <span className="text-xs text-charcoal-700 mt-1 block">Deseo agendar la cita para mi hijo/a, pareja, familiar o amigo.</span>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-charcoal-400 group-hover:text-sage-600 transition" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -445,7 +471,13 @@ export default function BookingPage() {
                   
                   {/* Botón para regresar al triage */}
                   <button
-                    onClick={() => setPasoTriage(3)}
+                    onClick={() => {
+                      if (triageParaQuien === 'Paciente Recurrente') {
+                        setPasoTriage(1);
+                      } else {
+                        setPasoTriage(3);
+                      }
+                    }}
                     type="button"
                     className="inline-flex items-center space-x-1 text-xs text-charcoal-700 hover:text-sage-700 font-semibold mb-4 transition"
                   >
@@ -522,9 +554,15 @@ export default function BookingPage() {
                         let botonClase = "aspect-square w-full rounded-xl flex items-center justify-center text-sm font-semibold transition-all duration-200 ";
                         let disabled = false;
 
+                        const citasTomadas = config.citasPorFecha?.[celdaFechaStr] || 0;
+
                         if (esPasado || esNoLaborable) {
                           // Días Sin Disponibilidad Automática o Pasados: bg-stone-200 sólido claro, texto gris oscuro line-through
                           botonClase += "bg-stone-200 text-stone-500 line-through cursor-not-allowed border border-stone-300";
+                          disabled = true;
+                        } else if (citasTomadas >= 3) {
+                          // TODOS los horarios tomados (Día lleno) ➡️ El día se pinta de ROJO y se deshabilita por completo
+                          botonClase += "bg-red-50 text-red-800 border-red-200 cursor-not-allowed";
                           disabled = true;
                         } else if (esSeleccionado) {
                           // Seleccionado: Verde Sage vivo, texto blanco bold perfectamente legible
@@ -533,8 +571,27 @@ export default function BookingPage() {
                           // Fin de semana (WhatsApp): Tono arena/ámbar sutil, con un borde fino contrastante
                           botonClase += "bg-amber-50/70 text-amber-800 border border-amber-300 hover:bg-amber-100/50";
                         } else {
-                          // Día hábil disponible normal
-                          botonClase += "bg-cream-50 text-charcoal-800 border border-cream-300 hover:border-sage-400 hover:bg-sage-50/20";
+                          // Día hábil disponible normal con semáforo dinámico
+                          if (citasTomadas === 0) {
+                            botonClase += "bg-green-50 text-green-800 border-green-300 hover:bg-green-100";
+                          } else if (citasTomadas === 1) {
+                            botonClase += "bg-yellow-50 text-yellow-800 border-yellow-300 hover:bg-yellow-100";
+                          } else if (citasTomadas === 2) {
+                            botonClase += "bg-purple-50 text-purple-800 border-purple-300 hover:bg-purple-100";
+                          }
+                        }
+
+                        let tooltipText = undefined;
+                        if (esNoLaborable) {
+                          tooltipText = "Día No Laborable (Vacaciones)";
+                        } else if (citasTomadas >= 3) {
+                          tooltipText = "Día lleno (Sin horarios disponibles)";
+                        } else if (!esPasado && !esFinSem) {
+                          if (citasTomadas === 0) {
+                            tooltipText = "Todos los horarios disponibles";
+                          } else {
+                            tooltipText = `${citasTomadas} hora${citasTomadas > 1 ? 's' : ''} tomada${citasTomadas > 1 ? 's' : ''}`;
+                          }
                         }
 
                         return (
@@ -544,7 +601,7 @@ export default function BookingPage() {
                             disabled={disabled}
                             type="button"
                             className={botonClase}
-                            title={esNoLaborable ? "Día No Laborable (Vacaciones)" : undefined}
+                            title={tooltipText}
                           >
                             {dia}
                           </button>
@@ -817,10 +874,10 @@ export default function BookingPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-black text-charcoal-900 tracking-tight leading-tight uppercase">
-                      Licda. Selena Karina Portillo Gálvez
+                      Licda. Selena Gálvez
                     </h3>
                     <p className="text-xs text-sage-700 font-bold uppercase tracking-wider mt-1.5">
-                      Psicóloga Clínica y Forense
+                      Psicóloga Clínica
                     </p>
                   </div>
                   <div className="h-px bg-cream-200 w-2/3 mx-auto md:mx-0"></div>
