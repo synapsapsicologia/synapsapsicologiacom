@@ -25,7 +25,8 @@ import {
   ExternalLink,
   Trash2,
   Phone,
-  Mail
+  Mail,
+  MessageCircle
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -34,6 +35,18 @@ interface DashboardStats {
   pacientesTotales: number;
   citasCanceladasEsteMes: number;
 }
+
+// Helper para limpiar el teléfono y generar el link de WhatsApp
+const obtenerLinkWhatsApp = (telefono: string | undefined | null, nombre: string, hora: string) => {
+  if (!telefono) return '';
+  const numbersOnly = telefono.replace(/\D/g, '');
+  let finalPhone = numbersOnly;
+  if (numbersOnly.length === 8) {
+    finalPhone = `503${numbersOnly}`;
+  }
+  const mensaje = `Hola ${nombre}, te saluda la Licda. Selena Gálvez. Te escribo para confirmar nuestra sesión programada para hoy a las ${hora}. ¡Nos vemos pronto!`;
+  return `https://wa.me/${finalPhone}?text=${encodeURIComponent(mensaje)}`;
+};
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats>({
@@ -467,6 +480,26 @@ export default function AdminDashboard() {
                             <ExternalLink className="w-3 h-3" />
                           </a>
                         )}
+                        {cita.paciente?.telefono && (() => {
+                          const wsLink = obtenerLinkWhatsApp(
+                            cita.paciente.telefono,
+                            cita.paciente.nombreCompleto || 'Paciente',
+                            a12Horas(cita.horaInicio)
+                          );
+                          if (!wsLink) return null;
+                          return (
+                            <a 
+                              href={wsLink} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs text-emerald-600 hover:text-emerald-800 font-semibold flex items-center space-x-1 transition-colors"
+                              title="Enviar recordatorio por WhatsApp"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5 fill-emerald-100/50" />
+                              <span>WhatsApp</span>
+                            </a>
+                          );
+                        })()}
                       </div>
 
                       {/* Botones de acción rápida */}
