@@ -185,6 +185,12 @@ export default function BookingPage() {
     return date.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
 
+  const esFechaBloqueada = fechaSeleccionada ? (
+    citasSlots.esDiaNoLaborable || 
+    (config.diasNoLaborables && config.diasNoLaborables.includes(fechaSeleccionada)) ||
+    ((config as any).fechasBloqueadas && (config as any).fechasBloqueadas.includes(fechaSeleccionada))
+  ) : false;
+
   return (
     <div className="flex-1 bg-cream-100 flex flex-col relative min-h-screen text-charcoal-900">
       
@@ -626,7 +632,7 @@ export default function BookingPage() {
                         <div className="w-8 h-8 border-4 border-sage-600 border-t-transparent rounded-full animate-spin"></div>
                         <p className="text-charcoal-700 text-xs font-semibold">Cargando horarios disponibles...</p>
                       </div>
-                    ) : citasSlots.esDiaNoLaborable ? (
+                    ) : esFechaBloqueada ? (
                       /* DÍA FESTIVO / VACACIONES */
                       <div className="bg-red-50 text-red-700 rounded-xl p-4 flex items-start space-x-3 border border-red-100 text-sm">
                         <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
@@ -842,9 +848,9 @@ export default function BookingPage() {
 
                   <button
                     type="submit"
-                    disabled={enviando || !fechaSeleccionada || !slotSeleccionado}
+                    disabled={enviando || !fechaSeleccionada || !slotSeleccionado || esFechaBloqueada}
                     className={`w-full mt-6 text-white font-semibold py-3.5 px-6 rounded-xl shadow-lg transition duration-200 flex items-center justify-center space-x-2 ${
-                      enviando || !fechaSeleccionada || !slotSeleccionado
+                      enviando || !fechaSeleccionada || !slotSeleccionado || esFechaBloqueada
                         ? 'bg-cream-300 shadow-none cursor-not-allowed text-charcoal-400'
                         : 'bg-gradient-to-r from-sage-600 to-sage-700 hover:from-sage-700 hover:to-sage-800 shadow-sage-100 hover:scale-[1.01] active:scale-[0.99]'
                     }`}

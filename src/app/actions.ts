@@ -406,14 +406,16 @@ export async function getCalendarioConfigAccion() {
     for (const c of citas) {
       citasPorFecha[c.fecha] = (citasPorFecha[c.fecha] || 0) + 1;
     }
+    const dias = db.getDiasNoLaborables();
     return {
       disponibilidad: db.getDisponibilidad(),
-      diasNoLaborables: db.getDiasNoLaborables(),
+      diasNoLaborables: dias,
+      fechasBloqueadas: dias,
       citasPorFecha
     };
   } catch (error) {
     console.error('Error al obtener configuración de calendario:', error);
-    return { disponibilidad: [], diasNoLaborables: [], citasPorFecha: {} };
+    return { disponibilidad: [], diasNoLaborables: [], fechasBloqueadas: [], citasPorFecha: {} };
   }
 }
 
@@ -471,7 +473,8 @@ export async function agregarDiaNoLaborableAccion(fecha: string) {
     revalidatePath("/admin");
     revalidatePath("/admin/disponibilidad");
     revalidatePath("/");
-    return { success: true, diasNoLaborables: db.getDiasNoLaborables() };
+    const dias = db.getDiasNoLaborables();
+    return { success: true, diasNoLaborables: dias, fechasBloqueadas: dias };
   } catch (error: any) {
     console.error('Error al agregar día no laborable:', error);
     return { success: false, error: error.message };
@@ -488,7 +491,8 @@ export async function eliminarDiaNoLaborableAccion(fecha: string) {
     revalidatePath("/admin");
     revalidatePath("/admin/disponibilidad");
     revalidatePath("/");
-    return { success: true, diasNoLaborables: db.getDiasNoLaborables() };
+    const dias = db.getDiasNoLaborables();
+    return { success: true, diasNoLaborables: dias, fechasBloqueadas: dias };
   } catch (error: any) {
     console.error('Error al eliminar día no laborable:', error);
     return { success: false, error: error.message };

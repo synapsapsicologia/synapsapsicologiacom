@@ -205,7 +205,8 @@ export function updateDisponibilidad(id: string, data: Partial<Disponibilidad>):
 // --- DIAS NO LABORABLES ---
 
 export function getDiasNoLaborables(): string[] {
-  return readDB().diasNoLaborables || [];
+  const db = readDB();
+  return db.diasNoLaborables || (db as any).fechasBloqueadas || [];
 }
 
 export function addDiaNoLaborable(fecha: string): void {
@@ -213,24 +214,48 @@ export function addDiaNoLaborable(fecha: string): void {
   if (!db.diasNoLaborables) {
     db.diasNoLaborables = [];
   }
+  if (!(db as any).fechasBloqueadas) {
+    (db as any).fechasBloqueadas = [];
+  }
   // Validar formato YYYY-MM-DD
   const regex = /^\d{4}-\d{2}-\d{2}$/;
   if (!regex.test(fecha)) {
     throw new Error('Formato de fecha inválido. Utilice YYYY-MM-DD.');
   }
+  let changed = false;
   if (!db.diasNoLaborables.includes(fecha)) {
     db.diasNoLaborables.push(fecha);
     db.diasNoLaborables.sort(); // Mantener ordenado
+    changed = true;
+  }
+  if (!(db as any).fechasBloqueadas.includes(fecha)) {
+    (db as any).fechasBloqueadas.push(fecha);
+    (db as any).fechasBloqueadas.sort(); // Mantener ordenado
+    changed = true;
+  }
+  if (changed) {
     writeDB(db);
   }
 }
 
 export function removeDiaNoLaborable(fecha: string): void {
   const db = readDB();
-  if (!db.diasNoLaborables) return;
-  const index = db.diasNoLaborables.indexOf(fecha);
-  if (index !== -1) {
-    db.diasNoLaborables.splice(index, 1);
+  let changed = false;
+  if (db.diasNoLaborables) {
+    const index = db.diasNoLaborables.indexOf(fecha);
+    if (index !== -1) {
+      db.diasNoLaborables.splice(index, 1);
+      changed = true;
+    }
+  }
+  if ((db as any).fechasBloqueadas) {
+    const index = (db as any).fechasBloqueadas.indexOf(fecha);
+    if (index !== -1) {
+      (db as any).fechasBloqueadas.splice(index, 1);
+      changed = true;
+    }
+  }
+  if (changed) {
     writeDB(db);
   }
 }
