@@ -44,18 +44,18 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-cream-100 flex items-center justify-center p-4 relative overflow-hidden font-sans">
       {/* Círculos decorativos abstractos de fondo para estética premium */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-sage-50/50 blur-3xl"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-olive-50/50 blur-3xl"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-50/30 blur-3xl"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-amber-50/20 blur-3xl"></div>
 
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-cream-200 overflow-hidden relative z-10 transition-all duration-300 hover:shadow-2xl">
+      <div className="w-full max-w-md bg-zinc-50/30 rounded-3xl border border-zinc-300/80 overflow-hidden relative z-10 transition-all duration-300 backdrop-blur-md">
         
         {/* Cabecera del Formulario */}
-        <div className="bg-gradient-to-br from-sage-600 to-sage-700 p-8 text-center text-white relative">
-          <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/20 shadow-lg animate-in zoom-in-95 duration-500">
-            <Brain className="w-8 h-8 text-cream-100 fill-white/10" />
+        <div className="border-b border-zinc-300/50 p-8 text-center relative bg-transparent">
+          <div className="w-16 h-16 bg-zinc-50/20 backdrop-blur-md rounded-2xl flex items-center justify-center mx-auto mb-4 border border-zinc-300/85 animate-in zoom-in-95 duration-500">
+            <Brain className="w-8 h-8 text-zinc-900" />
           </div>
-          <h2 className="text-2xl font-bold tracking-tight">Synapsa Admin</h2>
-          <p className="text-sage-100 text-xs mt-1.5 uppercase font-bold tracking-widest">
+          <h2 className="text-2xl font-light text-zinc-900 tracking-tight">Synapsa Admin</h2>
+          <p className="text-zinc-500 text-[10px] mt-1.5 uppercase font-light tracking-widest">
             Control de Consultorio y Reservas
           </p>
         </div>
@@ -65,19 +65,19 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-800 text-xs font-semibold rounded-xl p-4 flex items-center space-x-2 animate-in fade-in duration-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-650 flex-shrink-0 animate-ping"></span>
+              <div className="bg-red-50 border border-red-200/60 text-red-800 text-xs font-light rounded-xl p-4 flex items-center space-x-2 animate-in fade-in duration-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-600 flex-shrink-0 animate-ping"></span>
                 <span>{error}</span>
               </div>
             )}
 
             {/* Input de Usuario */}
             <div className="space-y-2">
-              <label htmlFor="usuario" className="block text-xs font-bold text-charcoal-700 uppercase tracking-wider">
+              <label htmlFor="usuario" className="block text-xs font-light text-zinc-400 uppercase tracking-wider">
                 Usuario
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-charcoal-400">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
                   <User className="w-4 h-4" />
                 </div>
                 <input
@@ -87,18 +87,18 @@ export default function LoginPage() {
                   placeholder="admin"
                   value={usuario}
                   onChange={(e) => setUsuario(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-cream-250 bg-cream-50/20 text-charcoal-900 text-sm font-semibold placeholder-charcoal-400 focus:outline-hidden focus:border-sage-500 focus:bg-white transition-all duration-200"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-zinc-300 bg-transparent text-zinc-900 text-sm font-light placeholder-zinc-400 focus:outline-hidden focus:border-zinc-800 focus:bg-zinc-100/30 transition-all duration-300"
                 />
               </div>
             </div>
 
             {/* Input de Contraseña */}
             <div className="space-y-2">
-              <label htmlFor="contrasenia" className="block text-xs font-bold text-charcoal-700 uppercase tracking-wider">
+              <label htmlFor="contrasenia" className="block text-xs font-light text-zinc-400 uppercase tracking-wider">
                 Contraseña
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-charcoal-400">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
                   <Lock className="w-4 h-4" />
                 </div>
                 <input
@@ -108,12 +108,12 @@ export default function LoginPage() {
                   placeholder="••••••••••••"
                   value={contrasenia}
                   onChange={(e) => setContrasenia(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 rounded-xl border border-cream-250 bg-cream-50/20 text-charcoal-900 text-sm font-semibold placeholder-charcoal-400 focus:outline-hidden focus:border-sage-500 focus:bg-white transition-all duration-200"
+                  className="w-full pl-10 pr-10 py-3 rounded-xl border border-zinc-300 bg-transparent text-zinc-900 text-sm font-light placeholder-zinc-400 focus:outline-hidden focus:border-zinc-800 focus:bg-zinc-100/30 transition-all duration-300"
                 />
                 <button
                   type="button"
                   onClick={() => setMostrarContrasenia(!mostrarContrasenia)}
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-charcoal-400 hover:text-sage-600 transition"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-zinc-850 transition-colors duration-300 cursor-pointer"
                   title={mostrarContrasenia ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
                   {mostrarContrasenia ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
@@ -125,11 +125,11 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={cargando}
-              className="w-full bg-gradient-to-r from-sage-600 to-sage-700 hover:from-sage-700 hover:to-sage-800 text-white font-bold py-3.5 px-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center space-x-2 text-sm disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
+              className="w-full bg-zinc-900 hover:bg-zinc-800 text-zinc-100 font-light py-3.5 px-6 rounded-xl border border-zinc-800 hover:border-zinc-700 transition-all duration-300 flex items-center justify-center space-x-2 text-sm disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
             >
               {cargando ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin text-zinc-300" />
                   <span>Verificando credenciales...</span>
                 </>
               ) : (
@@ -139,10 +139,10 @@ export default function LoginPage() {
 
           </form>
           
-          <div className="mt-8 pt-6 border-t border-cream-200 text-center">
+          <div className="mt-8 pt-6 border-t border-zinc-300/50 text-center">
             <Link
               href="/"
-              className="text-xs text-charcoal-700 hover:text-sage-700 font-semibold transition"
+              className="text-xs text-zinc-500 hover:text-zinc-900 font-light transition-colors duration-300"
             >
               ← Volver al Portal de Reservas
             </Link>

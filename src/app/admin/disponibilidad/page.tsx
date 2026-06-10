@@ -112,8 +112,8 @@ export default function DisponibilidadPage() {
   if (cargando) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] space-y-3">
-        <div className="w-12 h-12 border-4 border-sage-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-charcoal-800 font-semibold text-sm">Cargando disponibilidad...</p>
+        <div className="w-12 h-12 border-4 border-zinc-800 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-zinc-800 font-light text-sm">Cargando disponibilidad...</p>
       </div>
     );
   }
@@ -122,30 +122,30 @@ export default function DisponibilidadPage() {
     <div className="space-y-8 animate-in fade-in duration-300">
       
       <div>
-        <h2 className="text-2xl md:text-3xl font-extrabold text-charcoal-900 tracking-tight">Gestión de Disponibilidad</h2>
-        <p className="text-charcoal-700 text-sm">Configura tus horarios de atención de reservas y bloquea fechas especiales como vacaciones o feriados.</p>
+        <h2 className="text-2xl md:text-3xl font-light text-zinc-900 tracking-tight">Gestión de Disponibilidad</h2>
+        <p className="text-zinc-500 text-sm font-light mt-1">Configura tus horarios de atención de reservas y bloquea fechas especiales como vacaciones o feriados.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         {/* PANEL IZQUIERDO: HORARIOS SEMANALES (7 columnas) */}
-        <div className="lg:col-span-7 bg-white rounded-2xl shadow-xs border border-cream-200 p-6 space-y-6">
-          <h3 className="font-extrabold text-charcoal-900 text-lg flex items-center space-x-2 border-b border-cream-50 pb-3">
-            <Clock className="w-5 h-5 text-sage-600" />
+        <div className="lg:col-span-7 bg-zinc-50/30 rounded-2xl border border-zinc-300/80 p-6 space-y-6">
+          <h3 className="font-normal text-zinc-900 text-lg flex items-center space-x-2 border-b border-zinc-300/50 pb-3">
+            <Clock className="w-5 h-5 text-zinc-500" />
             <span>Horario de Atención Semanal</span>
           </h3>
 
-          <div className="bg-cream-150 text-charcoal-900 rounded-xl p-4 flex items-start space-x-3 border border-cream-200 text-xs leading-relaxed">
-            <AlertTriangle className="w-5 h-5 flex-shrink-0 text-sage-600" />
+          <div className="bg-zinc-50/20 text-zinc-950 rounded-xl p-4 flex items-start space-x-3 border border-zinc-300/80 text-xs leading-relaxed">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0 text-zinc-500" />
             <div>
-              <strong className="font-bold">Regla de Negocio Establecida:</strong>
-              <p className="mt-1">
+              <strong className="font-medium text-zinc-900">Regla de Negocio Establecida:</strong>
+              <p className="mt-1 font-light text-zinc-600">
                 Lunes a Jueves se permite reservar en el bloque nocturno de **7:00 PM a 10:00 PM** (citas estándar de 1 hora: bloques **7:00 PM, 8:00 PM y 9:00 PM**). Viernes a Domingo está bloqueado por defecto, recomendando contacto a WhatsApp.
               </p>
             </div>
           </div>
 
-          <div className="divide-y divide-cream-100">
+          <div className="divide-y divide-zinc-300/30">
             {disponibilidad.map((dia) => {
               const nombreDia = nombresDias[dia.diaSemana];
               const esFinSem = dia.diaSemana === 5 || dia.diaSemana === 6 || dia.diaSemana === 0;
@@ -153,15 +153,15 @@ export default function DisponibilidadPage() {
               return (
                 <div key={dia.id} className="py-4 flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
-                    <span className="font-bold text-sm text-charcoal-800 flex items-center space-x-2">
+                    <span className="font-normal text-sm text-zinc-900 flex items-center space-x-2">
                       <span>{nombreDia}</span>
                       {esFinSem && (
-                        <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-cream-200 text-charcoal-800 border border-cream-300">
+                        <span className="text-[9px] font-normal uppercase px-1.5 py-0.5 rounded-md bg-zinc-200/50 text-zinc-800 border border-zinc-300/60">
                           Fin de Semana
                         </span>
                       )}
                     </span>
-                    <span className="text-xs text-charcoal-700 block">
+                    <span className="text-xs text-zinc-500 font-light block">
                       {dia.bloqueado 
                         ? 'Cerrado para reservas automáticas' 
                         : `Disponible: ${a12Horas(dia.horaInicio)} - ${a12Horas(dia.horaFin)}`
@@ -173,20 +173,20 @@ export default function DisponibilidadPage() {
                     {/* Botón de alternar bloqueo */}
                     <button
                       onClick={() => handleToggleDia(dia.id, dia.bloqueado)}
-                      className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
+                      className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-light border transition-colors duration-300 cursor-pointer ${
                         dia.bloqueado 
-                          ? 'bg-red-550/10 hover:bg-red-100 text-red-700 border-red-200' 
-                          : 'bg-sage-100 hover:bg-sage-200 text-sage-800 border-sage-250'
+                          ? 'bg-[#f3dedb] text-[#8c3d3a] border-[#e5c5c0] hover:bg-[#ecd5d2]' 
+                          : 'bg-[#e6ebe7] text-[#3b5349] border-[#cedbd1] hover:bg-[#d8e2da]'
                       }`}
                     >
                       {dia.bloqueado ? (
                         <>
-                          <Lock className="w-3.5 h-3.5 text-red-500" />
+                          <Lock className="w-3.5 h-3.5 text-[#8c3d3a]" />
                           <span>Bloqueado</span>
                         </>
                       ) : (
                         <>
-                          <Unlock className="w-3.5 h-3.5 text-sage-600" />
+                          <Unlock className="w-3.5 h-3.5 text-[#3b5349]" />
                           <span>Activo</span>
                         </>
                       )}
@@ -200,52 +200,52 @@ export default function DisponibilidadPage() {
         </div>
 
         {/* PANEL DERECHO: DÍAS NO LABORABLES / FERIADOS (5 columnas) */}
-        <div className="lg:col-span-5 bg-white rounded-2xl shadow-xs border border-cream-200 p-6 space-y-6">
-          <h3 className="font-extrabold text-charcoal-900 text-lg flex items-center space-x-2 border-b border-cream-50 pb-3">
-            <CalendarDays className="w-5 h-5 text-sage-600" />
+        <div className="lg:col-span-5 bg-zinc-50/30 rounded-2xl border border-zinc-300/80 p-6 space-y-6">
+          <h3 className="font-normal text-zinc-900 text-lg flex items-center space-x-2 border-b border-zinc-300/50 pb-3">
+            <CalendarDays className="w-5 h-5 text-zinc-500" />
             <span>Fechas Bloqueadas (Vacaciones)</span>
           </h3>
 
-          <p className="text-xs text-charcoal-700 leading-relaxed">
+          <p className="text-xs text-zinc-500 font-light leading-relaxed">
             Agrega fechas específicas del año (feriados, asuetos, congresos, vacaciones) para bloquear el agendamiento del portal público por completo.
           </p>
 
           {/* Formulario de Agregar Día Feriado */}
           <form onSubmit={handleAgregarFeriado} className="space-y-3">
             <div>
-              <label className="block text-xs font-bold text-charcoal-400 uppercase tracking-wide mb-1.5">
+              <label className="block text-xs font-light text-zinc-400 uppercase tracking-wide mb-1.5">
                 Selecciona Fecha a Bloquear
               </label>
               <div className="flex space-x-2">
                 <input
                   type="date"
                   required
-                  className="flex-1 bg-cream-50 border border-cream-200 rounded-xl py-2.5 px-3.5 text-xs text-charcoal-850 focus:bg-white focus:ring-2 focus:ring-sage-500/20 focus:border-sage-500 outline-none transition"
+                  className="flex-1 bg-transparent border border-zinc-300 rounded-xl py-2.5 px-3.5 text-xs text-zinc-900 focus:bg-zinc-100/30 focus:border-zinc-800 outline-none transition-colors duration-300 font-light"
                   value={nuevaFecha}
                   onChange={(e) => setNuevaFecha(e.target.value)}
                 />
                 <button
                   type="submit"
-                  className="bg-sage-650 hover:bg-sage-700 text-white font-bold p-2.5 rounded-xl shadow-md shadow-sage-100 flex items-center justify-center transition"
+                  className="bg-zinc-900 hover:bg-zinc-800 text-zinc-100 p-2.5 rounded-xl border border-zinc-800 flex items-center justify-center transition-colors duration-300 cursor-pointer animate-none"
                   title="Bloquear fecha"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
               {errorFecha && (
-                <p className="text-[10px] text-red-650 font-bold mt-1">{errorFecha}</p>
+                <p className="text-[10px] text-red-650 font-light mt-1">{errorFecha}</p>
               )}
             </div>
           </form>
 
           {/* Listado de Días Bloqueados */}
           <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
-            <span className="block text-[10px] font-bold text-charcoal-400 uppercase tracking-wider mb-2">
+            <span className="block text-[10px] font-light text-zinc-400 uppercase tracking-wider mb-2">
               Días bloqueados ({diasNoLaborables.length})
             </span>
             
             {diasNoLaborables.length === 0 ? (
-              <div className="text-center py-6 text-charcoal-700 text-xs border border-dashed border-cream-200 rounded-xl">
+              <div className="text-center py-6 text-zinc-500 font-light text-xs border border-dashed border-zinc-300 rounded-xl">
                 No hay días bloqueados configurados.
               </div>
             ) : (
@@ -258,16 +258,16 @@ export default function DisponibilidadPage() {
                 return (
                   <div 
                     key={fecha} 
-                    className="flex items-center justify-between p-3 rounded-xl border border-cream-150 bg-cream-50/20 hover:bg-cream-100 transition"
+                    className="flex items-center justify-between p-3 rounded-xl border border-zinc-300 bg-transparent hover:bg-zinc-100/40 transition-colors duration-300"
                   >
                     <div className="min-w-0">
-                      <span className="font-bold text-xs text-charcoal-900 block">{fecha}</span>
-                      <span className="text-[10px] text-charcoal-700 capitalize truncate block">{descFechaStr}</span>
+                      <span className="font-normal text-xs text-zinc-900 block">{fecha}</span>
+                      <span className="text-[10px] text-zinc-500 font-light capitalize truncate block">{descFechaStr}</span>
                     </div>
                     
                     <button
                       onClick={() => handleEliminarFeriado(fecha)}
-                      className="text-charcoal-400 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition"
+                      className="text-zinc-400 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors duration-300 cursor-pointer"
                       title="Eliminar de la lista"
                     >
                       <Trash2 className="w-4 h-4" />
