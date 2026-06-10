@@ -23,7 +23,9 @@ import {
   Plus,
   Clock,
   ExternalLink,
-  Trash2
+  Trash2,
+  Phone,
+  Mail
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -261,8 +263,8 @@ export default function AdminDashboard() {
       {/* DASHBOARD PRINCIPAL - CALENDARIO & DETALLES */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
-        {/* CALENDARIO INTERACTIVO (8 columnas) */}
-        <div className="lg:col-span-8 bg-white rounded-2xl shadow-xs border border-cream-200 p-6">
+        {/* CALENDARIO INTERACTIVO (5 columnas) */}
+        <div className="lg:col-span-5 bg-white rounded-2xl shadow-xs border border-cream-200 p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-extrabold text-charcoal-900 text-lg flex items-center space-x-2">
               <CalendarIcon className="w-5 h-5 text-sage-600" />
@@ -296,11 +298,11 @@ export default function AdminDashboard() {
             ))}
           </div>
 
-          {/* Celdas del mes REDISEÑADAS para inyectar citas compactas */}
+          {/* Celdas del mes con puntos sutiles */}
           <div className="grid grid-cols-7 gap-2">
             {/* Espacios vacíos */}
             {Array.from({ length: primerDiaSemana }).map((_, i) => (
-              <div key={`empty-${i}`} className="min-h-[140px] bg-cream-50/20 rounded-xl border border-cream-100"></div>
+              <div key={`empty-${i}`} className="min-h-[70px] bg-cream-50/20 rounded-xl border border-cream-100"></div>
             ))}
 
             {/* Días activos */}
@@ -320,7 +322,7 @@ export default function AdminDashboard() {
                 <div
                   key={dia}
                   onClick={() => setFechaSeleccionada(celdaFechaStr)}
-                  className={`min-h-[140px] w-full p-2 text-left rounded-xl flex flex-col items-stretch border transition relative cursor-pointer ${
+                  className={`min-h-[70px] w-full p-2 text-left rounded-xl flex flex-col items-center justify-between border transition relative cursor-pointer ${
                     esSeleccionado 
                       ? 'bg-cream-150 border-sage-500 shadow-sm' 
                       : esHoy
@@ -329,48 +331,25 @@ export default function AdminDashboard() {
                   }`}
                 >
                   {/* Encabezado del día */}
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className={`text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center ${
+                  <div className="flex items-center justify-center w-full">
+                    <span className={`text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center ${
                       esHoy ? 'bg-sage-600 text-white' : 'text-charcoal-700'
                     }`}>{dia}</span>
-                    {citasDia.length > 0 && (
-                      <span className="text-[9px] font-bold text-sage-800 bg-sage-50 border border-sage-200 px-1 rounded-md">
-                        {citasDia.length}
-                      </span>
-                    )}
                   </div>
 
-                  {/* Lista de citas inyectada directamente en el recuadro con scroll interno */}
-                  <div className="flex-1 overflow-y-auto space-y-1.5 max-h-[100px] pr-0.5 scrollbar-thin">
-                    {citasDia.map((cita) => {
-                      const esPend = cita.estado === 'pendiente';
-                      const esComp = cita.estado === 'completada';
-
-                      return (
-                        <div
-                          key={cita.id}
-                          className={`rounded-lg p-2 border text-[11px] leading-tight hover:shadow-md transition duration-150 flex flex-col gap-1 ${
-                            esComp 
-                              ? 'bg-charcoal-100 border-charcoal-300 text-charcoal-900' 
-                              : esPend 
-                                ? 'bg-amber-100 border-amber-300 text-amber-950 font-bold' 
-                                : 'bg-sage-100 border-sage-300 text-sage-950 font-bold'
-                          }`}
-                          title={`${cita.paciente?.nombreCompleto || 'Paciente'}\nTel: ${cita.paciente?.telefono || ''}\nEmail: ${cita.paciente?.email || ''}`}
-                        >
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-[9px] uppercase font-black tracking-wide text-charcoal-800 bg-white/60 px-1.5 py-0.5 rounded-sm w-max">
-                              {a12Horas(cita.horaInicio)}
-                            </span>
-                            <span className="font-extrabold text-charcoal-900 text-[11px] block truncate">{cita.paciente?.nombreCompleto}</span>
-                          </div>
-                          <div className="text-[9px] border-t border-black/10 pt-1 text-charcoal-800 space-y-0.5 font-medium">
-                            <span className="block truncate">📞 {cita.paciente?.telefono}</span>
-                            <span className="block truncate">✉️ {cita.paciente?.email}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  {/* Punto sutil del color del semáforo */}
+                  <div className="flex justify-center items-center h-4 space-x-1">
+                    {citasDia.length > 0 && (() => {
+                      let dotColor = 'bg-zinc-400';
+                      if (citasDia.some(c => c.estado === 'pendiente')) {
+                        dotColor = 'bg-amber-400'; // Amarillo
+                      } else if (citasDia.some(c => c.estado === 'confirmada')) {
+                        dotColor = 'bg-emerald-500'; // Verde
+                      } else if (citasDia.some(c => c.estado === 'completada')) {
+                        dotColor = 'bg-purple-500'; // Morado
+                      }
+                      return <span className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />;
+                    })()}
                   </div>
                 </div>
               );
@@ -379,21 +358,24 @@ export default function AdminDashboard() {
 
         </div>
 
-        {/* DETALLE DEL DÍA SELECCIONADO (4 columnas) */}
-        <div className="lg:col-span-4 bg-white rounded-2xl shadow-xs border border-cream-200 p-6 flex flex-col min-h-[350px]">
-          <h3 className="font-extrabold text-charcoal-900 text-md border-b border-cream-150 pb-3 mb-4">
-            Citas del {fechaSeleccionada === hoyStr ? 'Hoy' : 'Día'}
+        {/* DETALLE DEL DÍA SELECCIONADO (7 columnas) */}
+        <div className="lg:col-span-7 bg-white rounded-2xl shadow-xs border border-cream-200 p-6 flex flex-col min-h-[350px]">
+          <h3 className="font-extrabold text-charcoal-900 text-md border-b border-cream-150 pb-3 mb-4 flex items-center justify-between">
+            <span>Agenda Diaria</span>
+            <span className="text-xs font-normal text-zinc-500 lowercase">
+              {citasDelDiaSeleccionado.length} {citasDelDiaSeleccionado.length === 1 ? 'cita' : 'citas'}
+            </span>
           </h3>
           
           <p className="text-xs font-bold text-charcoal-700 mb-4 uppercase tracking-wider">
             {formatearFechaEsp(fechaSeleccionada)}
           </p>
 
-          <div className="flex-1 space-y-4 overflow-y-auto max-h-[350px] pr-1">
+          <div className="flex-1 space-y-4 overflow-y-auto max-h-[550px] pr-1">
             {citasDelDiaSeleccionado.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6 text-charcoal-700 space-y-2">
-                <CalendarIcon className="w-8 h-8 text-cream-400" />
-                <p className="text-xs text-charcoal-700">No hay citas programadas para este día.</p>
+              <div className="h-full flex flex-col items-center justify-center text-center p-12 text-charcoal-700 space-y-2 border border-dashed border-zinc-200 rounded-2xl">
+                <CalendarIcon className="w-8 h-8 text-zinc-350" />
+                <p className="text-xs text-zinc-500">No hay citas programadas para este día.</p>
               </div>
             ) : (
               citasDelDiaSeleccionado.map((cita) => {
@@ -402,107 +384,134 @@ export default function AdminDashboard() {
                 const esCompletada = cita.estado === 'completada';
                 const esCancelada = cita.estado === 'cancelada';
 
+                // Helper para parsear tipo de sesión
+                const obtenerTipoSesion = (notas: any) => {
+                  const n = (notas || '').toUpperCase();
+                  if (n.includes('TRATAMIENTO')) return 'Tratamiento';
+                  if (n.includes('DIAGNOSTICO') || n.includes('DIAGNÓSTICO')) return 'Diagnóstico';
+                  return 'Consulta';
+                };
+                const tipoSesion = obtenerTipoSesion(cita.notasSesion || cita.notasHistorial);
+
                 return (
                   <div
                     key={cita.id}
-                    className={`rounded-xl border p-4 space-y-3 transition ${
-                      esCancelada 
-                        ? 'border-cream-150 bg-cream-50/20 opacity-60' 
-                        : esPendiente 
-                          ? 'border-amber-100 bg-amber-50/20' 
-                          : 'border-cream-200 bg-white shadow-xs'
+                    className={`bg-white/40 backdrop-blur-md border border-zinc-200/50 p-6 rounded-2xl mb-4 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xs hover:shadow-md transition duration-305 ${
+                      esCancelada ? 'opacity-60 border-zinc-200' : ''
                     }`}
                   >
-                    {/* Fila Superior */}
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <Link 
-                          href={`/admin/pacientes?id=${cita.pacienteId}`}
-                          className="font-bold text-charcoal-900 hover:text-sage-650 text-sm block"
-                        >
-                          {cita.paciente?.nombreCompleto || 'Paciente Desconocido'}
-                        </Link>
-                        <div className="flex items-center space-x-1.5 text-[11px] text-charcoal-700 mt-1">
-                          <Clock className="w-3.5 h-3.5 text-sage-500" />
-                          <span>{a12Horas(cita.horaInicio)} - {a12Horas(cita.horaFin)}</span>
-                        </div>
-                      </div>
-
-                      {/* Badge de estado */}
-                      <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                        esPendiente 
-                          ? 'bg-amber-100 text-amber-800' 
-                          : esConfirmada 
-                            ? 'bg-sage-100 text-sage-800'
-                            : esCompletada 
-                              ? 'bg-charcoal-100 text-charcoal-900'
-                              : 'bg-red-50 text-red-800'
-                      }`}>
-                        {cita.estado}
-                      </span>
-                    </div>
-
-                    {/* Fila de Detalles */}
-                    <div className="text-[11px] text-charcoal-700 flex items-center gap-4 border-t border-cream-150 pt-2">
-                      <div className="flex items-center space-x-1">
-                        <Video className="w-3.5 h-3.5 text-sage-500" />
-                        <span>Online</span>
+                    {/* Fila/Detalles del Paciente */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+                      {/* Hora Destacada */}
+                      <div className="flex-shrink-0 bg-zinc-100/50 px-4 py-3 rounded-xl border border-zinc-200 text-center min-w-[110px]">
+                        <span className="text-2xl font-semibold text-zinc-900 block leading-none">{a12Horas(cita.horaInicio)}</span>
+                        <span className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1.5 block font-mono">Fin: {a12Horas(cita.horaFin)}</span>
                       </div>
                       
-                      {cita.linkReunion && (
-                        <a 
-                          href={cita.linkReunion} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-sage-650 hover:underline flex items-center space-x-0.5 font-bold"
-                        >
-                          <span>Meet</span>
-                          <ExternalLink className="w-2.5 h-2.5" />
-                        </a>
+                      {/* Nombre, Badge y Contactos */}
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Link 
+                            href={`/admin/pacientes?id=${cita.pacienteId}`}
+                            className="text-lg font-bold text-zinc-800 hover:text-zinc-950 transition-colors"
+                          >
+                            {cita.paciente?.nombreCompleto || 'Paciente Desconocido'}
+                          </Link>
+                          <span className={`text-[10px] font-semibold uppercase px-2.5 py-0.5 rounded-full border ${
+                            tipoSesion === 'Tratamiento' 
+                              ? 'bg-teal-50 text-teal-800 border-teal-200' 
+                              : tipoSesion === 'Diagnóstico'
+                                ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                : 'bg-zinc-50 text-zinc-700 border-zinc-200'
+                          }`}>
+                            {tipoSesion}
+                          </span>
+                        </div>
+                        
+                        {/* Datos de contacto */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs text-zinc-650 font-light">
+                          <span className="flex items-center space-x-1.5">
+                            <Phone className="w-3.5 h-3.5 text-zinc-450" />
+                            <span className="select-all">{cita.paciente?.telefono || 'Sin teléfono'}</span>
+                          </span>
+                          <span className="flex items-center space-x-1.5">
+                            <Mail className="w-3.5 h-3.5 text-zinc-450" />
+                            <span className="select-all">{cita.paciente?.email || 'Sin correo'}</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Acciones y estado */}
+                    <div className="flex flex-col items-end justify-between gap-3 min-w-[150px] border-t md:border-t-0 pt-4 md:pt-0 border-zinc-200/60">
+                      <div className="flex items-center space-x-2">
+                        <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${
+                          esPendiente 
+                            ? 'bg-amber-50 text-amber-800 border-amber-250' 
+                            : esConfirmada 
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-250'
+                              : esCompletada 
+                                ? 'bg-zinc-100 text-zinc-800 border-zinc-300'
+                                : 'bg-red-50 text-red-800 border-red-200'
+                        }`}>
+                          {cita.estado}
+                        </span>
+                        {cita.linkReunion && (
+                          <a 
+                            href={cita.linkReunion} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs text-zinc-500 hover:text-zinc-950 font-normal underline flex items-center space-x-1"
+                          >
+                            <span>Meet</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+
+                      {/* Botones de acción rápida */}
+                      {!esCancelada && !esCompletada && (
+                        <div className="flex items-center space-x-1.5">
+                          {esPendiente && (
+                            <button
+                              onClick={() => handleConfirmar(cita.id)}
+                              className="border border-emerald-300 hover:bg-emerald-50 text-emerald-800 p-1.5 rounded-lg text-xs font-normal transition flex items-center space-x-1 bg-transparent cursor-pointer"
+                              title="Confirmar Cita"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Confirmar</span>
+                            </button>
+                          )}
+                          {esConfirmada && (
+                            <button
+                              onClick={() => handleCompletar(cita.id)}
+                              className="border border-zinc-350 hover:bg-zinc-100 text-zinc-800 p-1.5 rounded-lg text-xs font-normal transition flex items-center space-x-1 bg-transparent cursor-pointer"
+                              title="Completar Turno"
+                            >
+                              <Play className="w-3.5 h-3.5 text-zinc-600" />
+                              <span>Completar</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleCancelar(cita.id)}
+                            className="border border-red-300 hover:bg-red-50 text-red-700 p-1.5 rounded-lg text-xs font-normal transition flex items-center space-x-1 bg-transparent cursor-pointer"
+                            title="Cancelar Cita"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Cancelar</span>
+                          </button>
+                          <button
+                            onClick={() => abrirModalEliminar(cita.id)}
+                            className="border border-zinc-300 hover:bg-zinc-100 text-zinc-800 p-1.5 rounded-lg text-xs font-normal transition flex items-center space-x-1 bg-transparent cursor-pointer"
+                            title="Eliminar Cita de la BD"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                            <span>Eliminar</span>
+                          </button>
+                        </div>
                       )}
                     </div>
 
-                    {/* Acciones Rápidas */}
-                    {!esCancelada && !esCompletada && (
-                      <div className="flex items-center justify-end space-x-2 pt-2 border-t border-cream-150">
-                        {esPendiente && (
-                          <button
-                            onClick={() => handleConfirmar(cita.id)}
-                            className="bg-sage-50 hover:bg-sage-100 text-sage-800 p-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1 border border-sage-100"
-                            title="Confirmar Cita"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Confirmar</span>
-                          </button>
-                        )}
-                        {esConfirmada && (
-                          <button
-                            onClick={() => handleCompletar(cita.id)}
-                            className="bg-cream-150 hover:bg-cream-200 text-charcoal-900 p-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1 border border-cream-300"
-                            title="Completar Turno"
-                          >
-                            <Play className="w-3.5 h-3.5 text-sage-600" />
-                            <span>Completar</span>
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleCancelar(cita.id)}
-                          className="bg-red-50 hover:bg-red-100 text-red-700 p-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1"
-                          title="Cancelar Cita"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          <span>Cancelar</span>
-                        </button>
-                        <button
-                          onClick={() => abrirModalEliminar(cita.id)}
-                          className="bg-stone-100 hover:bg-stone-200 text-stone-700 p-1.5 rounded-lg text-xs font-bold transition flex items-center space-x-1 border border-stone-300"
-                          title="Eliminar Cita de la BD"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-red-650" />
-                          <span>Eliminar</span>
-                        </button>
-                      </div>
-                    )}
                   </div>
                 );
               })
