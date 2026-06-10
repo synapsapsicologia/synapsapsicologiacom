@@ -1,6 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
 import * as db from '../lib/db/client';
 import { validarDisponibilidadCita, obtenerSlotsParaFecha } from '../lib/utils/scheduler';
 import { 
@@ -422,6 +423,9 @@ export async function getCalendarioConfigAccion() {
 export async function actualizarDiaBloqueoAccion(id: string, bloqueado: boolean) {
   try {
     const actualizado = db.updateDisponibilidad(id, { bloqueado });
+    revalidatePath("/admin");
+    revalidatePath("/admin/disponibilidad");
+    revalidatePath("/");
     return { success: true, disponibilidad: actualizado };
   } catch (error: any) {
     console.error('Error al actualizar bloqueo de día:', error);
@@ -429,12 +433,44 @@ export async function actualizarDiaBloqueoAccion(id: string, bloqueado: boolean)
   }
 }
 
+// Helper para normalizar la fecha a formato YYYY-MM-DD
+function normalizarFecha(fecha: string): string {
+  if (!fecha) return '';
+  const trimmed = fecha.trim();
+  // Formato DD/MM/YYYY -> YYYY-MM-DD
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+    const [d, m, y] = trimmed.split('/');
+    return `${y}-${m}-${d}`;
+  }
+  // Formato YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  // En cualquier otro caso, intentar usar Date
+  try {
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  } catch (e) {
+    // ignorar
+  }
+  return trimmed;
+}
+
 /**
  * Agrega un día festivo o no laborable (vacaciones)
  */
 export async function agregarDiaNoLaborableAccion(fecha: string) {
   try {
-    db.addDiaNoLaborable(fecha);
+    const fechaNormalizada = normalizarFecha(fecha);
+    db.addDiaNoLaborable(fechaNormalizada);
+    revalidatePath("/admin");
+    revalidatePath("/admin/disponibilidad");
+    revalidatePath("/");
     return { success: true, diasNoLaborables: db.getDiasNoLaborables() };
   } catch (error: any) {
     console.error('Error al agregar día no laborable:', error);
@@ -447,7 +483,11 @@ export async function agregarDiaNoLaborableAccion(fecha: string) {
  */
 export async function eliminarDiaNoLaborableAccion(fecha: string) {
   try {
-    db.removeDiaNoLaborable(fecha);
+    const fechaNormalizada = normalizarFecha(fecha);
+    db.removeDiaNoLaborable(fechaNormalizada);
+    revalidatePath("/admin");
+    revalidatePath("/admin/disponibilidad");
+    revalidatePath("/");
     return { success: true, diasNoLaborables: db.getDiasNoLaborables() };
   } catch (error: any) {
     console.error('Error al eliminar día no laborable:', error);

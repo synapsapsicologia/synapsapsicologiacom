@@ -79,12 +79,17 @@ export default function DisponibilidadPage() {
     if (!nuevaFecha) return;
     setErrorFecha('');
 
-    const res = await agregarDiaNoLaborableAccion(nuevaFecha);
-    if (res.success) {
-      setDiasNoLaborables(res.diasNoLaborables || []);
-      setNuevaFecha('');
-    } else {
-      setErrorFecha(res.error || 'Error al agregar fecha.');
+    try {
+      const res = await agregarDiaNoLaborableAccion(nuevaFecha);
+      if (res.success) {
+        setDiasNoLaborables(res.diasNoLaborables || []);
+        setNuevaFecha('');
+        alert('Fecha bloqueada correctamente');
+      } else {
+        setErrorFecha(res.error || 'Error al agregar fecha.');
+      }
+    } catch (err: any) {
+      setErrorFecha(err.message || 'Error al agregar fecha.');
     }
   };
 

@@ -7,7 +7,8 @@ import {
   confirmarCitaAccion, 
   cancelarCitaAccion, 
   completarCitaAccion,
-  eliminarCitaAccion
+  eliminarCitaAccion,
+  getCalendarioConfigAccion
 } from '@/app/actions';
 import { 
   Calendar as CalendarIcon, 
@@ -56,6 +57,7 @@ export default function AdminDashboard() {
   });
   const [proximasCitas, setProximasCitas] = useState<any[]>([]);
   const [todasCitas, setTodasCitas] = useState<any[]>([]);
+  const [diasNoLaborables, setDiasNoLaborables] = useState<string[]>([]);
   const [cargando, setCargando] = useState(true);
 
   // Fecha seleccionada para el detalle diario
@@ -81,10 +83,12 @@ export default function AdminDashboard() {
     try {
       const resStats = await getDashboardStatsAccion();
       const resCitas = await getCitasAccion();
+      const resConfig = await getCalendarioConfigAccion();
       
       setStats(resStats.stats);
       setProximasCitas(resStats.proximasCitas);
       setTodasCitas(resCitas);
+      setDiasNoLaborables(resConfig.diasNoLaborables || []);
     } catch (error) {
       console.error('Error cargando datos del dashboard:', error);
     } finally {
@@ -327,6 +331,7 @@ export default function AdminDashboard() {
               
               const esSeleccionado = fechaSeleccionada === celdaFechaStr;
               const esHoy = hoyStr === celdaFechaStr;
+              const esBloqueado = diasNoLaborables.includes(celdaFechaStr);
 
               // Obtener citas del día
               const citasDia = todasCitas.filter(c => c.fecha === celdaFechaStr && c.estado !== 'cancelada');
@@ -336,17 +341,30 @@ export default function AdminDashboard() {
                   key={dia}
                   onClick={() => setFechaSeleccionada(celdaFechaStr)}
                   className={`min-h-[70px] w-full p-2 text-left rounded-xl flex flex-col items-center justify-between border transition relative cursor-pointer ${
-                    esSeleccionado 
-                      ? 'bg-cream-150 border-sage-500 shadow-sm' 
-                      : esHoy
-                        ? 'bg-white border-sage-400 text-sage-650'
-                        : 'bg-white border-cream-200 hover:border-sage-350 hover:bg-cream-50/30'
+                    esBloqueado
+                      ? 'bg-zinc-100/80 border-zinc-250 text-zinc-450 opacity-60'
+                      : esSeleccionado 
+                        ? 'bg-cream-150 border-sage-500 shadow-sm' 
+                        : esHoy
+                          ? 'bg-white border-sage-400 text-sage-650'
+                          : 'bg-white border-cream-200 hover:border-sage-350 hover:bg-cream-50/30'
                   }`}
                 >
+                  {/* Linea diagonal sutil si está bloqueado */}
+                  {esBloqueado && (
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden rounded-xl">
+                      <div className="w-[150%] h-[1px] bg-zinc-300/80 rotate-45 transform"></div>
+                    </div>
+                  )}
+
                   {/* Encabezado del día */}
                   <div className="flex items-center justify-center w-full">
                     <span className={`text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center ${
-                      esHoy ? 'bg-sage-600 text-white' : 'text-charcoal-700'
+                      esHoy 
+                        ? 'bg-sage-600 text-white' 
+                        : esBloqueado
+                          ? 'text-zinc-400 line-through'
+                          : 'text-charcoal-700'
                     }`}>{dia}</span>
                   </div>
 
