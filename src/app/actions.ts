@@ -36,6 +36,8 @@ export async function reservarCitaAccion(data: {
   horaInicio: string; // HH:MM
   modalidad: 'virtual' | 'presencial';
   motivoConsulta: string;
+  dui?: string;
+  direccionCompleta?: string;
 }) {
   try {
     // 1. Validar solapamientos (Scheduler)
@@ -47,12 +49,19 @@ export async function reservarCitaAccion(data: {
     // 2. Guardar registro en db.json
     // Buscar si el paciente ya existe por correo electrónico o por teléfono (normalizado)
     const pacientesExistentes = db.getPacientes();
-    const normalizarTelefono = (t: string) => t.replace(/[^\d]/g, '');
+    const normalizarTelefono = (t: string) => {
+      if (!t) return '';
+      const clean = t.replace(/[^\d]/g, '');
+      if (clean.length === 8) {
+        return `503${clean}`;
+      }
+      return clean;
+    };
     const telefonoBuscado = normalizarTelefono(data.telefono);
 
     let paciente = pacientesExistentes.find(p => 
-      p.email.toLowerCase() === data.email.toLowerCase() || 
-      normalizarTelefono(p.telefono) === telefonoBuscado
+      (p.email && p.email.toLowerCase() === data.email.toLowerCase()) || 
+      (p.telefono && normalizarTelefono(p.telefono) === telefonoBuscado)
     );
 
     if (paciente) {
@@ -63,7 +72,9 @@ export async function reservarCitaAccion(data: {
         : nuevaNota;
       
       paciente = db.updatePaciente(paciente.id, {
-        notasHistorial: notasActualizadas
+        notasHistorial: notasActualizadas,
+        dui: data.dui || paciente.dui,
+        direccionCompleta: data.direccionCompleta || paciente.direccionCompleta
       });
     } else {
       // El paciente no existe: registrar nuevo paciente normalmente
@@ -72,7 +83,9 @@ export async function reservarCitaAccion(data: {
         email: data.email,
         telefono: data.telefono,
         fechaNacimiento: data.fechaNacimiento,
-        notasHistorial: `Paciente registrado desde el portal público de reserva. Motivo inicial: ${data.motivoConsulta}`
+        notasHistorial: `Paciente registrado desde el portal público de reserva. Motivo inicial: ${data.motivoConsulta}`,
+        dui: data.dui,
+        direccionCompleta: data.direccionCompleta
       });
     }
 
@@ -360,9 +373,25 @@ export async function eliminarCitaAccion(citaId: string, notificarPaciente: bool
 export async function completarCitaAccion(citaId: string) {
   try {
     const actualizado = db.updateCita(citaId, { estado: 'completada' });
+    revalidatePath("/admin");
+    revalidatePath("/admin/pacientes");
+    revalidatePath("/");
     return { success: true, cita: actualizado };
   } catch (error: any) {
     console.error('Error al completar cita:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function actualizarEstadoCitaAccion(citaId: string, nuevoEstado: string) {
+  try {
+    const actualizado = db.updateCita(citaId, { estado: nuevoEstado as any });
+    revalidatePath("/admin");
+    revalidatePath("/admin/pacientes");
+    revalidatePath("/");
+    return { success: true, cita: actualizado };
+  } catch (error: any) {
+    console.error('Error al actualizar estado de cita:', error);
     return { success: false, error: error.message };
   }
 }
@@ -389,6 +418,8 @@ export async function actualizarPacienteAccion(pacienteId: string, data: {
   telefono: string;
   fechaNacimiento: string;
   notasHistorial: string;
+  dui?: string;
+  direccionCompleta?: string;
 }) {
   try {
     const actualizado = db.updatePaciente(pacienteId, data);
@@ -498,6 +529,25 @@ export async function eliminarDiaNoLaborableAccion(fecha: string) {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Actualiza en lote todos los días festivos o no laborables (vacaciones)
+ */
+export async function actualizarDiasNoLaborablesLoteAccion(fechas: string[]) {
+  try {
+    const fechasNormalizadas = fechas.map(f => normalizarFecha(f));
+    db.setDiasNoLaborables(fechasNormalizadas);
+    revalidatePath("/admin");
+    revalidatePath("/admin/disponibilidad");
+    revalidatePath("/");
+    const dias = db.getDiasNoLaborables();
+    return { success: true, diasNoLaborables: dias, fechasBloqueadas: dias };
+  } catch (error: any) {
+    console.error('Error al actualizar días no laborables en lote:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 
 /**
  * Inicia sesión para el administrador

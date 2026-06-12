@@ -5,7 +5,8 @@ import {
   getCalendarioConfigAccion, 
   actualizarDiaBloqueoAccion, 
   agregarDiaNoLaborableAccion, 
-  eliminarDiaNoLaborableAccion 
+  eliminarDiaNoLaborableAccion,
+  actualizarDiasNoLaborablesLoteAccion
 } from '@/app/actions';
 import { 
   Calendar, 
@@ -17,7 +18,9 @@ import {
   Lock, 
   Unlock,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 export default function DisponibilidadPage() {
@@ -25,9 +28,13 @@ export default function DisponibilidadPage() {
   const [diasNoLaborables, setDiasNoLaborables] = useState<string[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  // Nueva fecha feriada a agregar
-  const [nuevaFecha, setNuevaFecha] = useState('');
-  const [errorFecha, setErrorFecha] = useState('');
+  // Fechas seleccionadas localmente para bloquear
+  const [fechasSeleccionadas, setFechasSeleccionadas] = useState<string[]>([]);
+  const [cargandoLote, setCargandoLote] = useState(false);
+
+  // Navegación de mes del mini-calendario
+  const [mesActual, setMesActual] = useState(new Date().getMonth());
+  const [anioActual, setAnioActual] = useState(new Date().getFullYear());
 
   const nombresDias = [
     'Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'
@@ -45,6 +52,7 @@ export default function DisponibilidadPage() {
       });
       setDisponibilidad(ordenados);
       setDiasNoLaborables(res.diasNoLaborables || []);
+      setFechasSeleccionadas(res.diasNoLaborables || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -73,32 +81,76 @@ export default function DisponibilidadPage() {
     }
   };
 
-  // Agregar día no laborable
-  const handleAgregarFeriado = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nuevaFecha) return;
-    setErrorFecha('');
-
-    try {
-      const res = await agregarDiaNoLaborableAccion(nuevaFecha);
-      if (res.success) {
-        setDiasNoLaborables(res.diasNoLaborables || []);
-        setNuevaFecha('');
-        alert('Fecha bloqueada correctamente');
-      } else {
-        setErrorFecha(res.error || 'Error al agregar fecha.');
-      }
-    } catch (err: any) {
-      setErrorFecha(err.message || 'Error al agregar fecha.');
+  // Navegación de mes del mini-calendario
+  const irMesAnterior = () => {
+    if (mesActual === 0) {
+      setMesActual(11);
+      setAnioActual(prev => prev - 1);
+    } else {
+      setMesActual(prev => prev - 1);
     }
   };
 
-  // Eliminar día no laborable
+  const irMesSiguiente = () => {
+    if (mesActual === 11) {
+      setMesActual(0);
+      setAnioActual(prev => prev + 1);
+    } else {
+      setMesActual(prev => prev + 1);
+    }
+  };
+
+  const obtenerDiasEnMes = (mes: number, anio: number) => {
+    return new Date(anio, mes + 1, 0).getDate();
+  };
+
+  const obtenerPrimerDiaMes = (mes: number, anio: number) => {
+    return new Date(anio, mes, 1).getDay();
+  };
+
+  const diasEnMes = obtenerDiasEnMes(mesActual, anioActual);
+  const primerDiaSemana = obtenerPrimerDiaMes(mesActual, anioActual);
+  const nombresMeses = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+  // Alternar fecha seleccionada localmente
+  const toggleFechaSeleccionada = (fechaStr: string) => {
+    setFechasSeleccionadas(prev => 
+      prev.includes(fechaStr)
+        ? prev.filter(f => f !== fechaStr)
+        : [...prev, fechaStr]
+    );
+  };
+
+  // Guardar todas las fechas en lote
+  const handleGuardarFechasLote = async () => {
+    setCargandoLote(true);
+    try {
+      const res = await actualizarDiasNoLaborablesLoteAccion(fechasSeleccionadas);
+      if (res.success) {
+        setDiasNoLaborables(res.diasNoLaborables || []);
+        setFechasSeleccionadas(res.diasNoLaborables || []);
+        alert('Fechas bloqueadas actualizadas correctamente en lote');
+      } else {
+        alert(res.error || 'Error al guardar las fechas.');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error al guardar las fechas.');
+    } finally {
+      setCargandoLote(false);
+    }
+  };
+
+  // Eliminar día no laborable desde el listado inferior
   const handleEliminarFeriado = async (fecha: string) => {
     if (confirm(`¿Estás seguro de que deseas habilitar nuevamente las reservas para el día ${fecha}?`)) {
       const res = await eliminarDiaNoLaborableAccion(fecha);
       if (res.success) {
         setDiasNoLaborables(res.diasNoLaborables || []);
+        setFechasSeleccionadas(res.diasNoLaborables || []);
       } else {
         alert(res.error || 'Error al eliminar fecha.');
       }
@@ -212,36 +264,99 @@ export default function DisponibilidadPage() {
           </h3>
 
           <p className="text-xs text-charcoal-700 leading-relaxed">
-            Agrega fechas específicas del año (feriados, asuetos, congresos, vacaciones) para bloquear el agendamiento del portal público por completo.
+            Bloquea fechas específicas (vacaciones, feriados, días no laborables) seleccionando directamente los días en el calendario interactivo.
           </p>
 
-          {/* Formulario de Agregar Día Feriado */}
-          <form onSubmit={handleAgregarFeriado} className="space-y-3">
-            <div>
-              <label className="block text-xs font-bold text-charcoal-400 uppercase tracking-wide mb-1.5">
-                Selecciona Fecha a Bloquear
-              </label>
-              <div className="flex space-x-2">
-                <input
-                  type="date"
-                  required
-                  className="flex-1 bg-cream-50 border border-cream-200 rounded-xl py-2.5 px-3.5 text-xs text-charcoal-850 focus:bg-white focus:ring-2 focus:ring-sage-500/20 focus:border-sage-500 outline-none transition"
-                  value={nuevaFecha}
-                  onChange={(e) => setNuevaFecha(e.target.value)}
-                />
+          {/* Mini-Calendario Interactivo Múltiple */}
+          <div className="border border-cream-150 rounded-2xl p-4 bg-cream-50/10 space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-charcoal-800 uppercase tracking-wide">
+                Selecciona en el Calendario
+              </span>
+              
+              {/* Controles de mes */}
+              <div className="flex items-center space-x-1.5">
                 <button
-                  type="submit"
-                  className="bg-sage-650 hover:bg-sage-700 text-white font-bold p-2.5 rounded-xl shadow-md shadow-sage-100 flex items-center justify-center transition"
-                  title="Bloquear fecha"
+                  type="button"
+                  onClick={irMesAnterior}
+                  className="p-1.5 rounded-lg border border-cream-200 hover:bg-cream-50 text-charcoal-700 transition cursor-pointer"
                 >
-                  <Plus className="w-4 h-4" />
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-xs font-bold text-charcoal-800 min-w-[95px] text-center capitalize">
+                  {nombresMeses[mesActual]} {anioActual}
+                </span>
+                <button
+                  type="button"
+                  onClick={irMesSiguiente}
+                  className="p-1.5 rounded-lg border border-cream-200 hover:bg-cream-50 text-charcoal-700 transition cursor-pointer"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
-              {errorFecha && (
-                <p className="text-[10px] text-red-650 font-bold mt-1">{errorFecha}</p>
-              )}
             </div>
-          </form>
+
+            {/* Días de la Semana */}
+            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-charcoal-700 uppercase tracking-wider">
+              {diasSemana.map(d => (
+                <div key={d} className="py-0.5">{d}</div>
+              ))}
+            </div>
+
+            {/* Celdas del mes */}
+            <div className="grid grid-cols-7 gap-1">
+              {/* Espacios vacíos */}
+              {Array.from({ length: primerDiaSemana }).map((_, i) => (
+                <div key={`empty-${i}`} className="aspect-square bg-transparent rounded-lg"></div>
+              ))}
+
+              {/* Días activos */}
+              {Array.from({ length: diasEnMes }).map((_, i) => {
+                const dia = i + 1;
+                const mesFormateado = String(mesActual + 1).padStart(2, '0');
+                const diaFormateado = String(dia).padStart(2, '0');
+                const celdaFechaStr = `${anioActual}-${mesFormateado}-${diaFormateado}`;
+                
+                const esSeleccionado = fechasSeleccionadas.includes(celdaFechaStr);
+                const esOriginal = diasNoLaborables.includes(celdaFechaStr);
+                const esHoy = new Date().toISOString().split('T')[0] === celdaFechaStr;
+
+                return (
+                  <button
+                    key={dia}
+                    type="button"
+                    onClick={() => toggleFechaSeleccionada(celdaFechaStr)}
+                    className={`aspect-square w-full rounded-lg flex items-center justify-center text-xs font-bold transition relative cursor-pointer border ${
+                      esSeleccionado
+                        ? 'bg-sage-600 hover:bg-sage-700 text-white border-sage-700 shadow-xs'
+                        : esHoy
+                          ? 'bg-white border-sage-400 text-sage-650 hover:bg-cream-50/50 font-extrabold'
+                          : 'bg-white border-cream-200 hover:border-sage-350 hover:bg-cream-50/30 text-charcoal-750'
+                    }`}
+                  >
+                    <span>{dia}</span>
+                    {/* Indicador de cambio no guardado */}
+                    {esSeleccionado && !esOriginal && (
+                      <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-amber-400 rounded-full"></span>
+                    )}
+                    {!esSeleccionado && esOriginal && (
+                      <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-400 rounded-full"></span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Botón de Confirmación en Lote */}
+            <button
+              type="button"
+              onClick={handleGuardarFechasLote}
+              disabled={cargandoLote}
+              className="w-full bg-gradient-to-r from-sage-600 to-olive-700 hover:from-sage-700 hover:to-olive-800 disabled:opacity-50 text-white font-bold py-2.5 px-4 rounded-xl shadow-md shadow-sage-100 transition duration-200 flex items-center justify-center space-x-2 text-xs cursor-pointer"
+            >
+              <span>{cargandoLote ? 'Guardando...' : 'Confirmar Bloqueo de Fechas'}</span>
+            </button>
+          </div>
 
           {/* Listado de Días Bloqueados */}
           <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">

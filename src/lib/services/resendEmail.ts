@@ -168,6 +168,13 @@ export async function enviarEmailConfirmacionPaciente(params: {
     ? `<a href="${params.linkReunion}" class="btn" target="_blank">Unirse a la videollamada</a>` 
     : '';
 
+  // Determinar la tarifa de la sesión según el día de la semana (Lunes-Jueves vs Viernes-Domingo)
+  const fechaObj = new Date(`${params.fecha}T12:00:00`);
+  const diaSemana = fechaObj.getDay();
+  // 5 = Viernes, 6 = Sábado, 0 = Domingo
+  const esFinDeSemana = diaSemana === 5 || diaSemana === 6 || diaSemana === 0;
+  const tarifaTexto = esFinDeSemana ? '$17 a cancelar' : '$12 a cancelar';
+
   const modalDesc = 'Consulta 100% en Línea (Vía Google Meet)';
 
   const contenido = `
@@ -180,6 +187,7 @@ export async function enviarEmailConfirmacionPaciente(params: {
         <li><strong>Fecha:</strong> ${params.fecha}</li>
         <li><strong>Hora:</strong> ${hora12}</li>
         <li><strong>Modalidad:</strong> ${modalDesc}</li>
+        <li><strong>Tarifa:</strong> ${tarifaTexto}</li>
         ${params.linkReunion ? `<li><strong>Enlace de Reunión:</strong> <a href="${params.linkReunion}" style="color: #4A6B5D;">${params.linkReunion}</a></li>` : ''}
       </ul>
     </div>

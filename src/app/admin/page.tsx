@@ -8,7 +8,8 @@ import {
   cancelarCitaAccion, 
   completarCitaAccion,
   eliminarCitaAccion,
-  getCalendarioConfigAccion
+  getCalendarioConfigAccion,
+  actualizarEstadoCitaAccion
 } from '@/app/actions';
 import { 
   Calendar as CalendarIcon, 
@@ -47,6 +48,47 @@ const obtenerLinkWhatsApp = (telefono: string | undefined | null, nombre: string
   }
   const mensaje = `Hola ${nombre}, te saluda la Licda. Selena Gálvez. Te escribo para confirmar nuestra sesión programada para hoy a las ${hora}. ¡Nos vemos pronto!`;
   return `https://wa.me/${finalPhone}?text=${encodeURIComponent(mensaje)}`;
+};
+
+// Mapeador de colores de estado según la guía visual
+const obtenerEstiloEstado = (estado: string) => {
+  switch (estado) {
+    case 'pagado':
+      return 'bg-blue-50 text-blue-800 border-blue-200';
+    case 'pendiente':
+      return 'bg-red-50 text-red-800 border-red-200';
+    case 'reprogramada_cancelada':
+      return 'bg-emerald-950 text-emerald-100 border-emerald-900';
+    case 'reprogramada_no_cancelada':
+      return 'bg-emerald-50 text-emerald-800 border-emerald-250';
+    case 'reembolso':
+      return 'bg-orange-50 text-orange-850 border-orange-200';
+    case 'estudiante':
+      return 'bg-pink-50 text-pink-850 border-pink-200';
+    case 'confirmada':
+      return 'bg-emerald-50 text-emerald-800 border-emerald-200';
+    case 'completada':
+      return 'bg-zinc-100 text-zinc-800 border-zinc-300';
+    case 'cancelada':
+      return 'bg-red-50 text-red-850 border-red-200';
+    default:
+      return 'bg-zinc-50 text-zinc-700 border-zinc-200';
+  }
+};
+
+const obtenerNombreEstado = (estado: string) => {
+  switch (estado) {
+    case 'pagado': return 'Pagado';
+    case 'pendiente': return 'Pendiente';
+    case 'reprogramada_cancelada': return 'Reprogramada pero cancelada';
+    case 'reprogramada_no_cancelada': return 'Reprogramada pero NO cancelada';
+    case 'reembolso': return 'Reembolso';
+    case 'estudiante': return 'Calidad de estudiante';
+    case 'confirmada': return 'Confirmada';
+    case 'completada': return 'Completada';
+    case 'cancelada': return 'Cancelada';
+    default: return estado.charAt(0).toUpperCase() + estado.slice(1);
+  }
 };
 
 export default function AdminDashboard() {
@@ -155,6 +197,16 @@ export default function AdminDashboard() {
       }
     }
   };
+
+  const handleChangeEstado = async (citaId: string, nuevoEstado: string) => {
+    const res = await actualizarEstadoCitaAccion(citaId, nuevoEstado);
+    if (res.success) {
+      await cargarDatos();
+    } else {
+      alert(res.error || 'Error al actualizar el estado de la cita.');
+    }
+  };
+
 
   // --- NAVEGACIÓN CALENDARIO ---
   const irMesAnterior = () => {
@@ -476,16 +528,8 @@ export default function AdminDashboard() {
                     {/* Acciones y estado */}
                     <div className="flex flex-col items-end justify-between gap-3 min-w-[150px] border-t md:border-t-0 pt-4 md:pt-0 border-zinc-200/60">
                       <div className="flex items-center space-x-2">
-                        <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${
-                          esPendiente 
-                            ? 'bg-amber-50 text-amber-800 border-amber-250' 
-                            : esConfirmada 
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-250'
-                              : esCompletada 
-                                ? 'bg-zinc-100 text-zinc-800 border-zinc-300'
-                                : 'bg-red-50 text-red-800 border-red-200'
-                        }`}>
-                          {cita.estado}
+                        <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${obtenerEstiloEstado(cita.estado)}`}>
+                          {obtenerNombreEstado(cita.estado)}
                         </span>
                         {cita.linkReunion && (
                           <a 
@@ -520,47 +564,31 @@ export default function AdminDashboard() {
                         })()}
                       </div>
 
-                      {/* Botones de acción rápida */}
-                      {!esCancelada && !esCompletada && (
-                        <div className="flex items-center space-x-1.5">
-                          {esPendiente && (
-                            <button
-                              onClick={() => handleConfirmar(cita.id)}
-                              className="border border-emerald-300 hover:bg-emerald-50 text-emerald-800 p-1.5 rounded-lg text-xs font-normal transition flex items-center space-x-1 bg-transparent cursor-pointer"
-                              title="Confirmar Cita"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Confirmar</span>
-                            </button>
-                          )}
-                          {esConfirmada && (
-                            <button
-                              onClick={() => handleCompletar(cita.id)}
-                              className="border border-zinc-350 hover:bg-zinc-100 text-zinc-800 p-1.5 rounded-lg text-xs font-normal transition flex items-center space-x-1 bg-transparent cursor-pointer"
-                              title="Completar Turno"
-                            >
-                              <Play className="w-3.5 h-3.5 text-zinc-600" />
-                              <span>Completar</span>
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleCancelar(cita.id)}
-                            className="border border-red-300 hover:bg-red-50 text-red-700 p-1.5 rounded-lg text-xs font-normal transition flex items-center space-x-1 bg-transparent cursor-pointer"
-                            title="Cancelar Cita"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                            <span>Cancelar</span>
-                          </button>
-                          <button
-                            onClick={() => abrirModalEliminar(cita.id)}
-                            className="border border-zinc-300 hover:bg-zinc-100 text-zinc-800 p-1.5 rounded-lg text-xs font-normal transition flex items-center space-x-1 bg-transparent cursor-pointer"
-                            title="Eliminar Cita de la BD"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                            <span>Eliminar</span>
-                          </button>
-                        </div>
-                      )}
+                      {/* Selector de estado interactivo (Dropdown) y eliminar */}
+                      <div className="flex items-center space-x-1.5 mt-2 w-full justify-end">
+                        <select
+                          value={cita.estado}
+                          onChange={(e) => handleChangeEstado(cita.id, e.target.value)}
+                          className="bg-white border border-zinc-300 rounded-xl px-2.5 py-1.5 text-xs text-zinc-850 font-semibold focus:outline-none focus:ring-2 focus:ring-sage-500/20 focus:border-sage-500 outline-none transition cursor-pointer shadow-xs max-w-[170px] truncate"
+                        >
+                          <option value="pagado">Pagado</option>
+                          <option value="pendiente">Pendiente</option>
+                          <option value="reprogramada_cancelada">Reprogramada pero cancelada</option>
+                          <option value="reprogramada_no_cancelada">Reprogramada pero NO cancelada</option>
+                          <option value="reembolso">Reembolso</option>
+                          <option value="estudiante">Calidad de estudiante</option>
+                          <option value="confirmada">Confirmada</option>
+                          <option value="completada">Completada</option>
+                          <option value="cancelada">Cancelada</option>
+                        </select>
+                        <button
+                          onClick={() => abrirModalEliminar(cita.id)}
+                          className="border border-red-200 hover:bg-red-50 text-red-650 p-2 rounded-xl text-xs font-normal transition flex items-center justify-center bg-transparent cursor-pointer"
+                          title="Eliminar Cita de la BD"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                   </div>
@@ -620,12 +648,8 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td className="py-4">
-                        <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                          cita.estado === 'pendiente' 
-                            ? 'bg-amber-100 text-amber-800' 
-                            : 'bg-sage-100 text-sage-800'
-                        }`}>
-                          {cita.estado}
+                        <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${obtenerEstiloEstado(cita.estado)}`}>
+                          {obtenerNombreEstado(cita.estado)}
                         </span>
                       </td>
                       <td className="py-4 text-right">
