@@ -63,6 +63,8 @@ function PacientesContent() {
   const [editTelefono, setEditTelefono] = useState('');
   const [editFechaNac, setEditFechaNac] = useState('');
   const [editNotas, setEditNotas] = useState('');
+  const [editDui, setEditDui] = useState('');
+  const [editDireccionCompleta, setEditDireccionCompleta] = useState('');
   const [guardandoPac, setGuardandoPac] = useState(false);
 
   // Edición de notas de cita
@@ -107,6 +109,8 @@ function PacientesContent() {
         setEditTelefono(res.paciente.telefono);
         setEditFechaNac(res.paciente.fechaNacimiento);
         setEditNotas(res.paciente.notasHistorial);
+        setEditDui(res.paciente.dui || '');
+        setEditDireccionCompleta(res.paciente.direccionCompleta || '');
 
         // Inicializar notas temporales de citas
         const notasTemp: { [citaId: string]: string } = {};
@@ -128,12 +132,22 @@ function PacientesContent() {
     if (!pacienteSeleccionado) return;
 
     setGuardandoPac(true);
+    // Validar DUI salvadoreño (8 dígitos - 1 dígito)
+    const duiRegex = /^\d{8}-\d$/;
+    if (!duiRegex.test(editDui)) {
+      alert('El DUI ingresado no tiene un formato válido (00000000-0).');
+      setGuardandoPac(false);
+      return;
+    }
+
     const res = await actualizarPacienteAccion(pacienteSeleccionado.id, {
       nombreCompleto: editNombre,
       email: editEmail,
       telefono: editTelefono,
       fechaNacimiento: editFechaNac,
-      notasHistorial: editNotas
+      notasHistorial: editNotas,
+      dui: editDui,
+      direccionCompleta: editDireccionCompleta
     });
     setGuardandoPac(false);
 
@@ -382,6 +396,41 @@ function PacientesContent() {
                           className="w-full bg-cream-50 border border-cream-200 rounded-xl py-3 px-4 text-xs text-charcoal-900 focus:bg-white focus:ring-2 focus:ring-sage-500/20 focus:border-sage-500 outline-none transition"
                           value={editFechaNac}
                           onChange={(e) => setEditFechaNac(e.target.value)}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-charcoal-400 uppercase tracking-wide mb-1.5">
+                          DUI (Consumidor Final)
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="00000000-0"
+                          className="w-full bg-cream-50 border border-cream-200 rounded-xl py-3 px-4 text-xs text-charcoal-900 focus:bg-white focus:ring-2 focus:ring-sage-500/20 focus:border-sage-500 outline-none transition"
+                          value={editDui}
+                          onChange={(e) => {
+                            const clean = e.target.value.replace(/\D/g, '').slice(0, 9);
+                            if (clean.length > 8) {
+                              setEditDui(`${clean.slice(0, 8)}-${clean.slice(8)}`);
+                            } else {
+                              setEditDui(clean);
+                            }
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-charcoal-400 uppercase tracking-wide mb-1.5">
+                          Dirección Completa
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Dirección Completa"
+                          className="w-full bg-cream-50 border border-cream-200 rounded-xl py-3 px-4 text-xs text-charcoal-900 focus:bg-white focus:ring-2 focus:ring-sage-500/20 focus:border-sage-500 outline-none transition"
+                          value={editDireccionCompleta}
+                          onChange={(e) => setEditDireccionCompleta(e.target.value)}
                         />
                       </div>
 

@@ -5,9 +5,11 @@
       "email": "jedu41@gmail.com",
       "telefono": "70338589",
       "fechaNacimiento": "1996-09-20",
-      "notasHistorial": "Paciente registrado desde el portal público de reserva. Motivo inicial: [Triage] Sesión para: Para mí | Proceso: Terapia Individual | Enfoque: Proceso Emocional. Detalle: ",
+      "notasHistorial": "Paciente registrado desde el portal público de reserva. Motivo inicial: [Triage] Sesión para: Para mí | Proceso: Terapia Individual | Enfoque: Proceso Emocional. Detalle: \n\n[Nueva cita reservada para 2026-07-21 a las 19:00]: Motivo: [Triage] Sesión para: Para mí | Proceso: Terapia de Pareja | Enfoque: Relaciones. Detalle: prueba",
       "id": "pac-1781045254684-ev8g",
-      "fechaRegistro": "2026-06-09T22:47:34.684Z"
+      "fechaRegistro": "2026-06-09T22:47:34.684Z",
+      "dui": "00000000-0",
+      "direccionCompleta": "san salvadir"
     },
     {
       "id": "pac-1781118969114-0-6fju",
@@ -514,6 +516,18 @@
       "linkReunion": "https://meet.google.com/synapsa-mgo7hpzgu",
       "notasSesion": "Tipo de sesión: TRATAMIENTO",
       "googleCalendarId": ""
+    },
+    {
+      "pacienteId": "pac-1781045254684-ev8g",
+      "fecha": "2026-07-21",
+      "horaInicio": "19:00",
+      "horaFin": "20:00",
+      "estado": "pendiente",
+      "modalidad": "virtual",
+      "linkReunion": "https://meet.google.com/synapsa-1781239735398",
+      "notasSesion": "Motivo de consulta: [Triage] Sesión para: Para mí | Proceso: Terapia de Pareja | Enfoque: Relaciones. Detalle: prueba",
+      "googleCalendarId": "",
+      "id": "cit-1781239735398-dnc6"
     }
   ],
   "disponibilidad": [
@@ -568,7 +582,12 @@
     }
   ],
   "diasNoLaborables": [
-    "2026-06-17",
+    "2026-06-22",
+    "2026-12-24",
+    "2026-12-25",
+    "2026-12-31"
+  ],
+  "fechasBloqueadas": [
     "2026-06-22",
     "2026-12-24",
     "2026-12-25",
