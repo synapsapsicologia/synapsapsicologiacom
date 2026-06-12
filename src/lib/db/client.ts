@@ -9,6 +9,8 @@ export interface Paciente {
   fechaNacimiento: string;
   notasHistorial: string;
   fechaRegistro: string;
+  dui?: string;
+  direccionCompleta?: string;
 }
 
 export interface Cita {
@@ -38,6 +40,7 @@ export interface Database {
   citas: Cita[];
   disponibilidad: Disponibilidad[];
   diasNoLaborables: string[];
+  fechasBloqueadas: string[];
 }
 
 const getDbPath = () => {
@@ -62,17 +65,21 @@ export function readDB(): Database {
           { id: 'disp-6', diaSemana: 6, horaInicio: '19:00', horaFin: '21:00', bloqueado: true },
           { id: 'disp-0', diaSemana: 0, horaInicio: '19:00', horaFin: '21:00', bloqueado: true }
         ],
-        diasNoLaborables: []
+        diasNoLaborables: [],
+        fechasBloqueadas: []
       };
       fs.mkdirSync(path.dirname(dbPath), { recursive: true });
       fs.writeFileSync(dbPath, JSON.stringify(initialDb, null, 2), 'utf-8');
       return initialDb;
     }
     const data = fs.readFileSync(dbPath, 'utf-8');
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    if (!parsed.diasNoLaborables) parsed.diasNoLaborables = [];
+    if (!parsed.fechasBloqueadas) parsed.fechasBloqueadas = [];
+    return parsed;
   } catch (error) {
     console.error('Error leyendo la base de datos:', error);
-    return { pacientes: [], citas: [], disponibilidad: [], diasNoLaborables: [] };
+    return { pacientes: [], citas: [], disponibilidad: [], diasNoLaborables: [], fechasBloqueadas: [] };
   }
 }
 
@@ -99,8 +106,23 @@ export function getPacienteById(id: string): Paciente | undefined {
 
 export function createPaciente(data: Omit<Paciente, 'id' | 'fechaRegistro'>): Paciente {
   const db = readDB();
+  
+  const normalizarTelefono = (t: string) => {
+    if (!t) return '';
+    const clean = t.replace(/[^\d]/g, '');
+    if (clean.length === 8) {
+      return `503${clean}`;
+    }
+    return clean;
+  };
+  
+  const telefonoBuscado = normalizarTelefono(data.telefono);
   // Verificar si ya existe un paciente con el mismo email o teléfono
-  const existente = db.pacientes.find(p => p.email.toLowerCase() === data.email.toLowerCase());
+  const existente = db.pacientes.find(p => 
+    (p.email && p.email.toLowerCase() === data.email.toLowerCase()) ||
+    (p.telefono && normalizarTelefono(p.telefono) === telefonoBuscado)
+  );
+  
   if (existente) {
     return existente; // Retorna el existente para no duplicar en flujo de reserva
   }
@@ -206,7 +228,7 @@ export function updateDisponibilidad(id: string, data: Partial<Disponibilidad>):
 
 export function getDiasNoLaborables(): string[] {
   const db = readDB();
-  return db.diasNoLaborables || (db as any).fechasBloqueadas || [];
+  return db.diasNoLaborables || db.fechasBloqueadas || [];
 }
 
 export function addDiaNoLaborable(fecha: string): void {
@@ -214,8 +236,8 @@ export function addDiaNoLaborable(fecha: string): void {
   if (!db.diasNoLaborables) {
     db.diasNoLaborables = [];
   }
-  if (!(db as any).fechasBloqueadas) {
-    (db as any).fechasBloqueadas = [];
+  if (!db.fechasBloqueadas) {
+    db.fechasBloqueadas = [];
   }
   // Validar formato YYYY-MM-DD
   const regex = /^\d{4}-\d{2}-\d{2}$/;
@@ -228,9 +250,9 @@ export function addDiaNoLaborable(fecha: string): void {
     db.diasNoLaborables.sort(); // Mantener ordenado
     changed = true;
   }
-  if (!(db as any).fechasBloqueadas.includes(fecha)) {
-    (db as any).fechasBloqueadas.push(fecha);
-    (db as any).fechasBloqueadas.sort(); // Mantener ordenado
+  if (!db.fechasBloqueadas.includes(fecha)) {
+    db.fechasBloqueadas.push(fecha);
+    db.fechasBloqueadas.sort(); // Mantener ordenado
     changed = true;
   }
   if (changed) {
@@ -248,10 +270,10 @@ export function removeDiaNoLaborable(fecha: string): void {
       changed = true;
     }
   }
-  if ((db as any).fechasBloqueadas) {
-    const index = (db as any).fechasBloqueadas.indexOf(fecha);
+  if (db.fechasBloqueadas) {
+    const index = db.fechasBloqueadas.indexOf(fecha);
     if (index !== -1) {
-      (db as any).fechasBloqueadas.splice(index, 1);
+      db.fechasBloqueadas.splice(index, 1);
       changed = true;
     }
   }
@@ -259,3 +281,17 @@ export function removeDiaNoLaborable(fecha: string): void {
     writeDB(db);
   }
 }
+
+export function setDiasNoLaborables(fechas: string[]): void {
+  const db = readDB();
+  const regex = /^\d{4}-\d{2}-\d{2}$/;
+  const fechasValidas = fechas
+    .map(f => f.trim())
+    .filter(f => regex.test(f));
+  
+  db.diasNoLaborables = [...new Set(fechasValidas)].sort();
+  db.fechasBloqueadas = [...db.diasNoLaborables];
+  
+  writeDB(db);
+}
+
