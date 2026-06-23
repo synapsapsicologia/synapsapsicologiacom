@@ -59,26 +59,28 @@ export async function reservarCitaAccion(data: {
     };
     const telefonoBuscado = normalizarTelefono(data.telefono);
 
-    let paciente = pacientesExistentes.find(p => 
+    const pacienteExistente = pacientesExistentes.find(p => 
       (p.email && p.email.toLowerCase() === data.email.toLowerCase()) || 
       (p.telefono && normalizarTelefono(p.telefono) === telefonoBuscado)
     );
 
-    if (paciente) {
+    let finalPaciente: db.Paciente;
+
+    if (pacienteExistente) {
       // El paciente ya existe: concatenar/actualizar la información del nuevo triage en su historial
       const nuevaNota = `[Nueva cita reservada para ${data.fecha} a las ${data.horaInicio}]: Motivo: ${data.motivoConsulta}`;
-      const notasActualizadas = paciente.notasHistorial
-        ? `${paciente.notasHistorial}\n\n${nuevaNota}`
+      const notasActualizadas = pacienteExistente.notasHistorial
+        ? `${pacienteExistente.notasHistorial}\n\n${nuevaNota}`
         : nuevaNota;
       
-      paciente = await db.updatePaciente(paciente.id, {
+      finalPaciente = await db.updatePaciente(pacienteExistente.id, {
         notasHistorial: notasActualizadas,
-        dui: data.dui || paciente.dui,
-        direccionCompleta: data.direccionCompleta || paciente.direccionCompleta
+        dui: data.dui || pacienteExistente.dui,
+        direccionCompleta: data.direccionCompleta || pacienteExistente.direccionCompleta
       });
     } else {
       // El paciente no existe: registrar nuevo paciente normalmente
-      paciente = await db.createPaciente({
+      finalPaciente = await db.createPaciente({
         nombreCompleto: data.nombreCompleto,
         email: data.email,
         telefono: data.telefono,
@@ -96,7 +98,7 @@ export async function reservarCitaAccion(data: {
     // Crear cita en db.json con link de reunión virtual autogenerado
     const linkReunion = data.modalidad === 'virtual' ? `https://meet.google.com/synapsa-${Date.now()}` : '';
     const nuevaCita = await db.createCita({
-      pacienteId: paciente.id,
+      pacienteId: finalPaciente.id,
       fecha: data.fecha,
       horaInicio: data.horaInicio,
       horaFin: horaFin,
@@ -107,12 +109,13 @@ export async function reservarCitaAccion(data: {
       googleCalendarId: ''
     });
 
+
     // 3. Desplegar los correos confirmatorios de Resend
     try {
       // Confirmación al paciente
       await enviarEmailConfirmacionPaciente({
-        pacienteNombre: paciente.nombreCompleto,
-        pacienteEmail: paciente.email,
+        pacienteNombre: finalPaciente.nombreCompleto,
+        pacienteEmail: finalPaciente.email,
         fecha: nuevaCita.fecha,
         horaInicio: nuevaCita.horaInicio,
         modalidad: nuevaCita.modalidad,
@@ -121,9 +124,9 @@ export async function reservarCitaAccion(data: {
 
       // Notificación al administrador
       await enviarEmailNotificacionAdmin({
-        pacienteNombre: paciente.nombreCompleto,
-        pacienteEmail: paciente.email,
-        pacienteTelefono: paciente.telefono,
+        pacienteNombre: finalPaciente.nombreCompleto,
+        pacienteEmail: finalPaciente.email,
+        pacienteTelefono: finalPaciente.telefono,
         fecha: nuevaCita.fecha,
         horaInicio: nuevaCita.horaInicio,
         modalidad: nuevaCita.modalidad,
@@ -134,7 +137,7 @@ export async function reservarCitaAccion(data: {
     }
 
     // 4. Preparar la lógica de links de WhatsApp Web (Paciente y Clínico)
-    const cleanPhone = paciente.telefono.replace(/[^\d]/g, '');
+    const cleanPhone = finalPaciente.telefono.replace(/[^\d]/g, '');
     const finalPhone = cleanPhone.startsWith('503') ? cleanPhone : `503${cleanPhone}`;
     
     const [a, mes, d] = data.fecha.split('-');
@@ -142,20 +145,21 @@ export async function reservarCitaAccion(data: {
     
     // Alerta al Paciente: Mensaje empático
     const patientMsg = encodeURIComponent(
-      `¡Hola ${paciente.nombreCompleto}! Te confirmamos que tu espacio en Synapsa ha sido reservado con éxito para el día ${formattedDate} de ${data.horaInicio} a ${horaFin} (modalidad 100% en línea). ¡Nos vemos pronto!`
+      `¡Hola ${finalPaciente.nombreCompleto}! Te confirmamos que tu espacio en Synapsa ha sido reservado con éxito para el día ${formattedDate} de ${data.horaInicio} a ${horaFin} (modalidad 100% en línea). ¡Nos vemos pronto!`
     );
     const whatsappPacienteLink = `https://wa.me/${finalPhone}?text=${patientMsg}`;
 
     // Alerta Interna a Synapsa (Número de la clínica: 50375386551)
     const adminMsg = encodeURIComponent(
-      `¡Nueva cita agendada!\nPaciente: ${paciente.nombreCompleto}\nTeléfono: ${paciente.telefono}\nCorreo: ${paciente.email}\nMotivo: ${data.motivoConsulta}`
+      `¡Nueva cita agendada!\nPaciente: ${finalPaciente.nombreCompleto}\nTeléfono: ${finalPaciente.telefono}\nCorreo: ${finalPaciente.email}\nMotivo: ${data.motivoConsulta}`
     );
     const whatsappAdminLink = `https://wa.me/50375386551?text=${adminMsg}`;
+
 
     return { 
       success: true, 
       cita: nuevaCita, 
-      paciente,
+      paciente: finalPaciente,
       whatsappPacienteLink,
       whatsappAdminLink
     };
