@@ -1,4 +1,4 @@
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
 
 export interface Paciente {
   id: string;
@@ -43,15 +43,23 @@ export interface Database {
   fechasBloqueadas: string[];
 }
 
-// Lectura asíncrona de Vercel KV para evitar problemas de concurrencia
+const redis = new Redis(process.env.REDIS_URL!, {
+  tls: { rejectUnauthorized: false }
+});
+redis.on('error', (err) => {
+  console.error('Redis Connection Error:', err.message);
+});
+export { redis };
+
+// Lectura asíncrona de Redis para evitar problemas de concurrencia
 export async function readDB(): Promise<Database> {
   try {
     const [pacientesStr, citasStr, disponibilidadStr, diasNoLaborablesStr, fechasBloqueadasStr] = await Promise.all([
-      kv.get<any>('synapsa:pacientes'),
-      kv.get<any>('synapsa:citas'),
-      kv.get<any>('synapsa:disponibilidad'),
-      kv.get<any>('synapsa:diasNoLaborables'),
-      kv.get<any>('synapsa:fechasBloqueadas')
+      redis.get('synapsa:pacientes'),
+      redis.get('synapsa:citas'),
+      redis.get('synapsa:disponibilidad'),
+      redis.get('synapsa:diasNoLaborables'),
+      redis.get('synapsa:fechasBloqueadas')
     ]);
 
     const initialDb: Database = {
@@ -70,8 +78,6 @@ export async function readDB(): Promise<Database> {
       fechasBloqueadas: []
     };
 
-    // Vercel KV parses JSON automatically if it is returned as an object/array,
-    // but can return strings depending on the KV configuration/API. We handle both.
     const parseValue = (val: any, fallback: any) => {
       if (val === null || val === undefined) return fallback;
       if (typeof val === 'string') {
@@ -97,16 +103,15 @@ export async function readDB(): Promise<Database> {
   }
 }
 
-// Escritura asíncrona en Vercel KV
+// Escritura asíncrona en Redis
 export async function writeDB(db: Database): Promise<void> {
   try {
-    // Vercel KV serializa objetos y arreglos automáticamente.
     await Promise.all([
-      kv.set('synapsa:pacientes', db.pacientes),
-      kv.set('synapsa:citas', db.citas),
-      kv.set('synapsa:disponibilidad', db.disponibilidad),
-      kv.set('synapsa:diasNoLaborables', db.diasNoLaborables),
-      kv.set('synapsa:fechasBloqueadas', db.fechasBloqueadas)
+      redis.set('synapsa:pacientes', JSON.stringify(db.pacientes)),
+      redis.set('synapsa:citas', JSON.stringify(db.citas)),
+      redis.set('synapsa:disponibilidad', JSON.stringify(db.disponibilidad)),
+      redis.set('synapsa:diasNoLaborables', JSON.stringify(db.diasNoLaborables)),
+      redis.set('synapsa:fechasBloqueadas', JSON.stringify(db.fechasBloqueadas))
     ]);
   } catch (error) {
     console.error("ERROR CRÍTICO EN REDIS (writeDB):", error);
