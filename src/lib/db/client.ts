@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import Redis from 'ioredis';
 
 export interface Paciente {
   id: string;
@@ -44,69 +43,98 @@ export interface Database {
   fechasBloqueadas: string[];
 }
 
-const getDbPath = () => {
-  return path.join(process.cwd(), 'src', 'lib', 'db', 'db.json');
-};
+let redisInstance: Redis | null = null;
 
-// Lectura síncrona para evitar problemas de concurrencia
-export function readDB(): Database {
-  try {
-    const dbPath = getDbPath();
-    if (!fs.existsSync(dbPath)) {
-      // Si el archivo no existe por alguna razón, inicializarlo vacío con estructura
-      const initialDb: Database = {
-        pacientes: [],
-        citas: [],
-        disponibilidad: [
-          { id: 'disp-1', diaSemana: 1, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
-          { id: 'disp-2', diaSemana: 2, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
-          { id: 'disp-3', diaSemana: 3, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
-          { id: 'disp-4', diaSemana: 4, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
-          { id: 'disp-5', diaSemana: 5, horaInicio: '19:00', horaFin: '21:00', bloqueado: true },
-          { id: 'disp-6', diaSemana: 6, horaInicio: '19:00', horaFin: '21:00', bloqueado: true },
-          { id: 'disp-0', diaSemana: 0, horaInicio: '19:00', horaFin: '21:00', bloqueado: true }
-        ],
-        diasNoLaborables: [],
-        fechasBloqueadas: []
-      };
-      fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-      fs.writeFileSync(dbPath, JSON.stringify(initialDb, null, 2), 'utf-8');
-      return initialDb;
+function getRedis(): Redis {
+  if (redisInstance) return redisInstance;
+  
+  const url = process.env.REDIS_URL;
+  if (!url) {
+    throw new Error('REDIS_URL environment variable is not defined.');
+  }
+  
+  if (process.env.NODE_ENV === 'production') {
+    redisInstance = new Redis(url);
+  } else {
+    if (!(global as any).redis) {
+      (global as any).redis = new Redis(url);
     }
-    const data = fs.readFileSync(dbPath, 'utf-8');
-    const parsed = JSON.parse(data);
-    if (!parsed.diasNoLaborables) parsed.diasNoLaborables = [];
-    if (!parsed.fechasBloqueadas) parsed.fechasBloqueadas = [];
-    return parsed;
+    redisInstance = (global as any).redis;
+  }
+  return redisInstance!;
+}
+
+// Lectura asíncrona de Redis para evitar problemas de concurrencia
+export async function readDB(): Promise<Database> {
+  try {
+    const r = getRedis();
+    const [pacientesStr, citasStr, disponibilidadStr, diasNoLaborablesStr, fechasBloqueadasStr] = await Promise.all([
+      r.get('synapsa:pacientes'),
+      r.get('synapsa:citas'),
+      r.get('synapsa:disponibilidad'),
+      r.get('synapsa:diasNoLaborables'),
+      r.get('synapsa:fechasBloqueadas')
+    ]);
+
+    const initialDb: Database = {
+      pacientes: [],
+      citas: [],
+      disponibilidad: [
+        { id: 'disp-1', diaSemana: 1, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
+        { id: 'disp-2', diaSemana: 2, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
+        { id: 'disp-3', diaSemana: 3, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
+        { id: 'disp-4', diaSemana: 4, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
+        { id: 'disp-5', diaSemana: 5, horaInicio: '19:00', horaFin: '21:00', bloqueado: true },
+        { id: 'disp-6', diaSemana: 6, horaInicio: '19:00', horaFin: '21:00', bloqueado: true },
+        { id: 'disp-0', diaSemana: 0, horaInicio: '19:00', horaFin: '21:00', bloqueado: true }
+      ],
+      diasNoLaborables: [],
+      fechasBloqueadas: []
+    };
+
+    return {
+      pacientes: pacientesStr ? JSON.parse(pacientesStr) : initialDb.pacientes,
+      citas: citasStr ? JSON.parse(citasStr) : initialDb.citas,
+      disponibilidad: disponibilidadStr ? JSON.parse(disponibilidadStr) : initialDb.disponibilidad,
+      diasNoLaborables: diasNoLaborablesStr ? JSON.parse(diasNoLaborablesStr) : initialDb.diasNoLaborables,
+      fechasBloqueadas: fechasBloqueadasStr ? JSON.parse(fechasBloqueadasStr) : initialDb.fechasBloqueadas
+    };
   } catch (error) {
-    console.error('Error leyendo la base de datos:', error);
+    console.error('Error leyendo la base de datos Redis:', error);
     return { pacientes: [], citas: [], disponibilidad: [], diasNoLaborables: [], fechasBloqueadas: [] };
   }
 }
 
-// Escritura síncrona para bloquear y evitar colisiones
-export function writeDB(db: Database): void {
+// Escritura asíncrona en Redis
+export async function writeDB(db: Database): Promise<void> {
   try {
-    const dbPath = getDbPath();
-    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), 'utf-8');
+    const r = getRedis();
+    await Promise.all([
+      r.set('synapsa:pacientes', JSON.stringify(db.pacientes)),
+      r.set('synapsa:citas', JSON.stringify(db.citas)),
+      r.set('synapsa:disponibilidad', JSON.stringify(db.disponibilidad)),
+      r.set('synapsa:diasNoLaborables', JSON.stringify(db.diasNoLaborables)),
+      r.set('synapsa:fechasBloqueadas', JSON.stringify(db.fechasBloqueadas))
+    ]);
   } catch (error) {
-    console.error('Error escribiendo en la base de datos:', error);
+    console.error('Error escribiendo en la base de datos Redis:', error);
   }
 }
 
 // --- PACIENTES CRUD ---
 
-export function getPacientes(): Paciente[] {
-  return readDB().pacientes;
+export async function getPacientes(): Promise<Paciente[]> {
+  const db = await readDB();
+  return db.pacientes;
 }
 
-export function getPacienteById(id: string): Paciente | undefined {
-  return readDB().pacientes.find(p => p.id === id);
+export async function getPacienteById(id: string): Promise<Paciente | undefined> {
+  const db = await readDB();
+  return db.pacientes.find(p => p.id === id);
 }
 
-export function createPaciente(data: Omit<Paciente, 'id' | 'fechaRegistro'>): Paciente {
-  const db = readDB();
+export async function createPaciente(data: Omit<Paciente, 'id' | 'fechaRegistro'>): Promise<Paciente> {
+  const db = await readDB();
   
   const normalizarTelefono = (t: string) => {
     if (!t) return '';
@@ -134,106 +162,108 @@ export function createPaciente(data: Omit<Paciente, 'id' | 'fechaRegistro'>): Pa
     fechaRegistro: new Date().toISOString()
   };
   db.pacientes.push(nuevoPaciente);
-  writeDB(db);
+  await writeDB(db);
   return nuevoPaciente;
 }
 
-export function updatePaciente(id: string, data: Partial<Paciente>): Paciente {
-  const db = readDB();
+export async function updatePaciente(id: string, data: Partial<Paciente>): Promise<Paciente> {
+  const db = await readDB();
   const index = db.pacientes.findIndex(p => p.id === id);
   if (index === -1) {
     throw new Error(`Paciente con ID ${id} no encontrado`);
   }
   const actualizado = { ...db.pacientes[index], ...data };
   db.pacientes[index] = actualizado;
-  writeDB(db);
+  await writeDB(db);
   return actualizado;
 }
 
-export function deletePaciente(id: string): boolean {
-  const db = readDB();
+export async function deletePaciente(id: string): Promise<boolean> {
+  const db = await readDB();
   const index = db.pacientes.findIndex(p => p.id === id);
   if (index === -1) return false;
   db.pacientes.splice(index, 1);
-  // También podríamos cancelar o eliminar sus citas relacionadas
+  // También cancelamos o eliminamos sus citas relacionadas
   db.citas = db.citas.filter(c => c.pacienteId !== id);
-  writeDB(db);
+  await writeDB(db);
   return true;
 }
 
 // --- CITAS CRUD ---
 
-export function getCitas(): (Cita & { paciente?: Paciente })[] {
-  const db = readDB();
+export async function getCitas(): Promise<(Cita & { paciente?: Paciente })[]> {
+  const db = await readDB();
   return db.citas.map(cita => ({
     ...cita,
     paciente: db.pacientes.find(p => p.id === cita.pacienteId)
   }));
 }
 
-export function getCitaById(id: string): Cita | undefined {
-  return readDB().citas.find(c => c.id === id);
+export async function getCitaById(id: string): Promise<Cita | undefined> {
+  const db = await readDB();
+  return db.citas.find(c => c.id === id);
 }
 
-export function createCita(data: Omit<Cita, 'id'>): Cita {
-  const db = readDB();
+export async function createCita(data: Omit<Cita, 'id'>): Promise<Cita> {
+  const db = await readDB();
   const nuevaCita: Cita = {
     ...data,
     id: `cit-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`
   };
   db.citas.push(nuevaCita);
-  writeDB(db);
+  await writeDB(db);
   return nuevaCita;
 }
 
-export function updateCita(id: string, data: Partial<Cita>): Cita {
-  const db = readDB();
+export async function updateCita(id: string, data: Partial<Cita>): Promise<Cita> {
+  const db = await readDB();
   const index = db.citas.findIndex(c => c.id === id);
   if (index === -1) {
     throw new Error(`Cita con ID ${id} no encontrada`);
   }
   const actualizada = { ...db.citas[index], ...data };
   db.citas[index] = actualizada;
-  writeDB(db);
+  await writeDB(db);
   return actualizada;
 }
 
-export function deleteCita(id: string): boolean {
-  const db = readDB();
+export async function deleteCita(id: string): Promise<boolean> {
+  const db = await readDB();
   const index = db.citas.findIndex(c => c.id === id);
   if (index === -1) return false;
   db.citas.splice(index, 1);
-  writeDB(db);
+  await writeDB(db);
   return true;
 }
 
 // --- DISPONIBILIDAD ---
 
-export function getDisponibilidad(): Disponibilidad[] {
-  return readDB().disponibilidad;
+export async function getDisponibilidad(): Promise<Disponibilidad[]> {
+  const db = await readDB();
+  return db.disponibilidad;
 }
 
-export function updateDisponibilidad(id: string, data: Partial<Disponibilidad>): Disponibilidad {
-  const db = readDB();
+export async function updateDisponibilidad(id: string, data: Partial<Disponibilidad>): Promise<Disponibilidad> {
+  const db = await readDB();
   const index = db.disponibilidad.findIndex(d => d.id === id);
   if (index === -1) {
     throw new Error(`Disponibilidad con ID ${id} no encontrada`);
   }
   const actualizada = { ...db.disponibilidad[index], ...data };
   db.disponibilidad[index] = actualizada;
-  writeDB(db);
+  await writeDB(db);
   return actualizada;
 }
 
 // --- DIAS NO LABORABLES ---
 
-export function getDiasNoLaborables(): string[] {
-  const db = readDB();
+export async function getDiasNoLaborables(): Promise<string[]> {
+  const db = await readDB();
   return db.diasNoLaborables || db.fechasBloqueadas || [];
 }
 
-export function addDiaNoLaborable(fecha: string): void {
-  const db = readDB();
+export async function addDiaNoLaborable(fecha: string): Promise<void> {
+  const db = await readDB();
   if (!db.diasNoLaborables) {
     db.diasNoLaborables = [];
   }
@@ -257,12 +287,12 @@ export function addDiaNoLaborable(fecha: string): void {
     changed = true;
   }
   if (changed) {
-    writeDB(db);
+    await writeDB(db);
   }
 }
 
-export function removeDiaNoLaborable(fecha: string): void {
-  const db = readDB();
+export async function removeDiaNoLaborable(fecha: string): Promise<void> {
+  const db = await readDB();
   let changed = false;
   if (db.diasNoLaborables) {
     const index = db.diasNoLaborables.indexOf(fecha);
@@ -279,12 +309,12 @@ export function removeDiaNoLaborable(fecha: string): void {
     }
   }
   if (changed) {
-    writeDB(db);
+    await writeDB(db);
   }
 }
 
-export function setDiasNoLaborables(fechas: string[]): void {
-  const db = readDB();
+export async function setDiasNoLaborables(fechas: string[]): Promise<void> {
+  const db = await readDB();
   const regex = /^\d{4}-\d{2}-\d{2}$/;
   const fechasValidas = fechas
     .map(f => f.trim())
@@ -293,6 +323,5 @@ export function setDiasNoLaborables(fechas: string[]): void {
   db.diasNoLaborables = [...new Set(fechasValidas)].sort();
   db.fechasBloqueadas = [...db.diasNoLaborables];
   
-  writeDB(db);
+  await writeDB(db);
 }
-

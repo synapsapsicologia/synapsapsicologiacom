@@ -68,12 +68,12 @@ export interface Slot {
 /**
  * Retorna los slots disponibles para una fecha específica (YYYY-MM-DD)
  */
-export function obtenerSlotsParaFecha(fechaString: string): {
+export async function obtenerSlotsParaFecha(fechaString: string): Promise<{
   esFinDeSemana: boolean;
   esDiaNoLaborable: boolean;
   slots: Slot[];
-} {
-  const diasNoLaborables = getDiasNoLaborables();
+}> {
+  const diasNoLaborables = await getDiasNoLaborables();
   
   // 1. Validar si es un Día No Laborable configurado
   if (diasNoLaborables.includes(fechaString)) {
@@ -101,7 +101,7 @@ export function obtenerSlotsParaFecha(fechaString: string): {
   }
 
   // 3. Obtener la disponibilidad de la base de datos para ese día de la semana
-  const disponibilidadLista = getDisponibilidad();
+  const disponibilidadLista = await getDisponibilidad();
   const dispDia = disponibilidadLista.find(d => d.diaSemana === diaSemana);
 
   // Si no hay configuración o está bloqueado, no hay slots
@@ -120,7 +120,7 @@ export function obtenerSlotsParaFecha(fechaString: string): {
   const duracionSlot = 60; // 1 hora estándar en minutos
 
   // Obtener citas existentes para esa fecha que estén activas (no canceladas)
-  const citasDelDia = getCitas().filter(
+  const citasDelDia = (await getCitas()).filter(
     c => c.fecha === fechaString && c.estado !== 'cancelada'
   );
 
@@ -160,13 +160,13 @@ export function obtenerSlotsParaFecha(fechaString: string): {
 /**
  * Valida si es posible crear una cita en una fecha y hora determinadas
  */
-export function validarDisponibilidadCita(
+export async function validarDisponibilidadCita(
   fechaString: string,
   horaInicio24: string,
   duracionHoras: number = 1
-): { esValido: boolean; motivo?: string } {
+): Promise<{ esValido: boolean; motivo?: string }> {
   // 1. Validar feriado / día no laborable
-  const diasNoLaborables = getDiasNoLaborables();
+  const diasNoLaborables = await getDiasNoLaborables();
   if (diasNoLaborables.includes(fechaString)) {
     return { esValido: false, motivo: 'La fecha seleccionada es un día no laborable.' };
   }
@@ -179,7 +179,7 @@ export function validarDisponibilidadCita(
   }
 
   // 3. Validar disponibilidad configurada
-  const disponibilidadLista = getDisponibilidad();
+  const disponibilidadLista = await getDisponibilidad();
   const dispDia = disponibilidadLista.find(d => d.diaSemana === diaSemana);
   if (!dispDia || dispDia.bloqueado) {
     return { esValido: false, motivo: 'El profesional no tiene disponibilidad configurada para este día.' };
@@ -196,7 +196,7 @@ export function validarDisponibilidadCita(
   }
 
   // 4. Validar solapamiento con citas existentes
-  const citasDelDia = getCitas().filter(
+  const citasDelDia = (await getCitas()).filter(
     c => c.fecha === fechaString && c.estado !== 'cancelada'
   );
 

@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const citas = db.getCitas();
+    const citas = await db.getCitas();
     const now = new Date();
     
     // Ventana de 3 horas en milisegundos (180 minutos)
@@ -29,7 +29,7 @@ export async function GET() {
       
       // Si la cita está en el futuro y se encuentra dentro de la ventana de 3 horas
       if (diffMs > 0 && diffMs <= TRES_HORAS_MS) {
-        const paciente = db.getPacienteById(cita.pacienteId);
+        const paciente = await db.getPacienteById(cita.pacienteId);
         
         if (paciente) {
           const linkReunion = cita.linkReunion || 'https://meet.google.com/synapsa-demo';
@@ -56,7 +56,7 @@ export async function GET() {
           }
           
           // 3. Registrar en base de datos local que el recordatorio fue despachado
-          db.updateCita(cita.id, { recordatorioEnviado: true });
+          await db.updateCita(cita.id, { recordatorioEnviado: true });
           
           recordatoriosEnviados.push({
             citaId: cita.id,

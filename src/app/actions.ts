@@ -17,7 +17,7 @@ import {
  */
 export async function getSlotsAccion(fechaString: string) {
   try {
-    return obtenerSlotsParaFecha(fechaString);
+    return await obtenerSlotsParaFecha(fechaString);
   } catch (error) {
     console.error('Error al obtener slots:', error);
     return { esFinDeSemana: false, esDiaNoLaborable: false, slots: [] };
@@ -41,14 +41,14 @@ export async function reservarCitaAccion(data: {
 }) {
   try {
     // 1. Validar solapamientos (Scheduler)
-    const validacion = validarDisponibilidadCita(data.fecha, data.horaInicio);
+    const validacion = await validarDisponibilidadCita(data.fecha, data.horaInicio);
     if (!validacion.esValido) {
       return { success: false, error: validacion.motivo || 'Horario no disponible.' };
     }
 
     // 2. Guardar registro en db.json
     // Buscar si el paciente ya existe por correo electrónico o por teléfono (normalizado)
-    const pacientesExistentes = db.getPacientes();
+    const pacientesExistentes = await db.getPacientes();
     const normalizarTelefono = (t: string) => {
       if (!t) return '';
       const clean = t.replace(/[^\d]/g, '');
@@ -71,14 +71,14 @@ export async function reservarCitaAccion(data: {
         ? `${paciente.notasHistorial}\n\n${nuevaNota}`
         : nuevaNota;
       
-      paciente = db.updatePaciente(paciente.id, {
+      paciente = await db.updatePaciente(paciente.id, {
         notasHistorial: notasActualizadas,
         dui: data.dui || paciente.dui,
         direccionCompleta: data.direccionCompleta || paciente.direccionCompleta
       });
     } else {
       // El paciente no existe: registrar nuevo paciente normalmente
-      paciente = db.createPaciente({
+      paciente = await db.createPaciente({
         nombreCompleto: data.nombreCompleto,
         email: data.email,
         telefono: data.telefono,
@@ -95,7 +95,7 @@ export async function reservarCitaAccion(data: {
 
     // Crear cita en db.json con link de reunión virtual autogenerado
     const linkReunion = data.modalidad === 'virtual' ? `https://meet.google.com/synapsa-${Date.now()}` : '';
-    const nuevaCita = db.createCita({
+    const nuevaCita = await db.createCita({
       pacienteId: paciente.id,
       fecha: data.fecha,
       horaInicio: data.horaInicio,
@@ -172,8 +172,8 @@ export async function reservarCitaAccion(data: {
  */
 export async function getDashboardStatsAccion() {
   try {
-    const citas = db.getCitas();
-    const pacientes = db.getPacientes();
+    const citas = await db.getCitas();
+    const pacientes = await db.getPacientes();
     
     // Obtener fecha de hoy en huso horario local del servidor o El Salvador (YYYY-MM-DD)
     const hoyDate = new Date();
@@ -229,7 +229,7 @@ export async function getDashboardStatsAccion() {
  */
 export async function getCitasAccion() {
   try {
-    return db.getCitas();
+    return await db.getCitas();
   } catch (error) {
     console.error('Error al obtener citas:', error);
     return [];
@@ -241,7 +241,7 @@ export async function getCitasAccion() {
  */
 export async function getPacientesAccion() {
   try {
-    return db.getPacientes();
+    return await db.getPacientes();
   } catch (error) {
     console.error('Error al obtener pacientes:', error);
     return [];
@@ -253,10 +253,10 @@ export async function getPacientesAccion() {
  */
 export async function getPacienteDetalleAccion(pacienteId: string) {
   try {
-    const paciente = db.getPacienteById(pacienteId);
+    const paciente = await db.getPacienteById(pacienteId);
     if (!paciente) return null;
 
-    const citas = db.getCitas()
+    const citas = (await db.getCitas())
       .filter(c => c.pacienteId === pacienteId)
       .sort((a, b) => {
         // Ordenar de más reciente a más antigua
@@ -279,11 +279,11 @@ export async function getPacienteDetalleAccion(pacienteId: string) {
  */
 export async function confirmarCitaAccion(citaId: string) {
   try {
-    const cita = db.getCitaById(citaId);
+    const cita = await db.getCitaById(citaId);
     if (!cita) return { success: false, error: 'Cita no encontrada.' };
 
-    const actualizado = db.updateCita(citaId, { estado: 'confirmada' });
-    const paciente = db.getPacienteById(cita.pacienteId);
+    const actualizado = await db.updateCita(citaId, { estado: 'confirmada' });
+    const paciente = await db.getPacienteById(cita.pacienteId);
 
     if (paciente) {
       // Enviar correo de confirmación de cita (si pasa de pendiente a confirmada, reafirmamos)
@@ -309,12 +309,12 @@ export async function confirmarCitaAccion(citaId: string) {
  */
 export async function cancelarCitaAccion(citaId: string) {
   try {
-    const cita = db.getCitaById(citaId);
+    const cita = await db.getCitaById(citaId);
     if (!cita) return { success: false, error: 'Cita no encontrada.' };
 
     // 1. Cambiar estado a cancelada
-    const actualizado = db.updateCita(citaId, { estado: 'cancelada' });
-    const paciente = db.getPacienteById(cita.pacienteId);
+    const actualizado = await db.updateCita(citaId, { estado: 'cancelada' });
+    const paciente = await db.getPacienteById(cita.pacienteId);
 
     // 2. Enviar correo de cancelación (Disparador 2)
     if (paciente) {
@@ -339,10 +339,10 @@ export async function cancelarCitaAccion(citaId: string) {
  */
 export async function eliminarCitaAccion(citaId: string, notificarPaciente: boolean) {
   try {
-    const cita = db.getCitaById(citaId);
+    const cita = await db.getCitaById(citaId);
     if (!cita) return { success: false, error: 'Cita no encontrada.' };
 
-    const paciente = db.getPacienteById(cita.pacienteId);
+    const paciente = await db.getPacienteById(cita.pacienteId);
 
     // 1. Si se requiere notificar y existe el paciente, enviar correo de cancelación
     if (notificarPaciente && paciente) {
@@ -360,7 +360,7 @@ export async function eliminarCitaAccion(citaId: string, notificarPaciente: bool
     }
 
     // 2. Eliminar físicamente del db.json
-    const eliminado = db.deleteCita(citaId);
+    const eliminado = await db.deleteCita(citaId);
     revalidatePath("/admin", "layout");
     revalidatePath("/admin/disponibilidad", "layout");
     revalidatePath("/admin/pacientes", "layout");
@@ -377,7 +377,7 @@ export async function eliminarCitaAccion(citaId: string, notificarPaciente: bool
  */
 export async function completarCitaAccion(citaId: string) {
   try {
-    const actualizado = db.updateCita(citaId, { estado: 'completada' });
+    const actualizado = await db.updateCita(citaId, { estado: 'completada' });
     revalidatePath("/admin", "layout");
     revalidatePath("/admin/pacientes", "layout");
     revalidatePath("/", "layout");
@@ -390,7 +390,7 @@ export async function completarCitaAccion(citaId: string) {
 
 export async function actualizarEstadoCitaAccion(citaId: string, nuevoEstado: string) {
   try {
-    const actualizado = db.updateCita(citaId, { estado: nuevoEstado as any });
+    const actualizado = await db.updateCita(citaId, { estado: nuevoEstado as any });
     revalidatePath("/admin", "layout");
     revalidatePath("/admin/pacientes", "layout");
     revalidatePath("/", "layout");
@@ -403,7 +403,7 @@ export async function actualizarEstadoCitaAccion(citaId: string, nuevoEstado: st
 
 export async function actualizarPagoCitaAccion(citaId: string, pagado: boolean) {
   try {
-    const actualizado = db.updateCita(citaId, { pagado });
+    const actualizado = await db.updateCita(citaId, { pagado });
     revalidatePath("/admin", "layout");
     revalidatePath("/admin/pacientes", "layout");
     revalidatePath("/", "layout");
@@ -419,7 +419,7 @@ export async function actualizarPagoCitaAccion(citaId: string, pagado: boolean) 
  */
 export async function guardarNotasSesionAccion(citaId: string, notas: string) {
   try {
-    const actualizado = db.updateCita(citaId, { notasSesion: notas });
+    const actualizado = await db.updateCita(citaId, { notasSesion: notas });
     return { success: true, cita: actualizado };
   } catch (error: any) {
     console.error('Error al guardar notas de sesión:', error);
@@ -440,7 +440,7 @@ export async function actualizarPacienteAccion(pacienteId: string, data: {
   direccionCompleta?: string;
 }) {
   try {
-    const actualizado = db.updatePaciente(pacienteId, data);
+    const actualizado = await db.updatePaciente(pacienteId, data);
     return { success: true, paciente: actualizado };
   } catch (error: any) {
     console.error('Error al actualizar paciente:', error);
@@ -450,14 +450,14 @@ export async function actualizarPacienteAccion(pacienteId: string, data: {
 
 export async function getCalendarioConfigAccion() {
   try {
-    const citas = db.getCitas().filter(c => c.estado !== 'cancelada');
+    const citas = (await db.getCitas()).filter(c => c.estado !== 'cancelada');
     const citasPorFecha: Record<string, number> = {};
     for (const c of citas) {
       citasPorFecha[c.fecha] = (citasPorFecha[c.fecha] || 0) + 1;
     }
-    const dias = db.getDiasNoLaborables();
+    const dias = await db.getDiasNoLaborables();
     return {
-      disponibilidad: db.getDisponibilidad(),
+      disponibilidad: await db.getDisponibilidad(),
       diasNoLaborables: dias,
       fechasBloqueadas: dias,
       citasPorFecha
@@ -473,7 +473,7 @@ export async function getCalendarioConfigAccion() {
  */
 export async function actualizarDiaBloqueoAccion(id: string, bloqueado: boolean) {
   try {
-    const actualizado = db.updateDisponibilidad(id, { bloqueado });
+    const actualizado = await db.updateDisponibilidad(id, { bloqueado });
     revalidatePath("/admin", "layout");
     revalidatePath("/admin/disponibilidad", "layout");
     revalidatePath("/", "layout");
@@ -552,11 +552,11 @@ export async function agregarDiaNoLaborableAccion(fecha: any) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaNormalizada)) {
       throw new Error('Formato de fecha inválido. Utilice YYYY-MM-DD.');
     }
-    db.addDiaNoLaborable(fechaNormalizada);
+    await db.addDiaNoLaborable(fechaNormalizada);
     revalidatePath("/admin", "layout");
     revalidatePath("/admin/disponibilidad", "layout");
     revalidatePath("/", "layout");
-    const dias = db.getDiasNoLaborables();
+    const dias = await db.getDiasNoLaborables();
     return { success: true, diasNoLaborables: dias, fechasBloqueadas: dias };
   } catch (error: any) {
     console.error('Error al agregar día no laborable:', error);
@@ -570,11 +570,11 @@ export async function agregarDiaNoLaborableAccion(fecha: any) {
 export async function eliminarDiaNoLaborableAccion(fecha: any) {
   try {
     const fechaNormalizada = normalizarFecha(fecha);
-    db.removeDiaNoLaborable(fechaNormalizada);
+    await db.removeDiaNoLaborable(fechaNormalizada);
     revalidatePath("/admin", "layout");
     revalidatePath("/admin/disponibilidad", "layout");
     revalidatePath("/", "layout");
-    const dias = db.getDiasNoLaborables();
+    const dias = await db.getDiasNoLaborables();
     return { success: true, diasNoLaborables: dias, fechasBloqueadas: dias };
   } catch (error: any) {
     console.error('Error al eliminar día no laborable:', error);
@@ -595,12 +595,12 @@ export async function actualizarDiasNoLaborablesLoteAccion(fechas: any) {
     // Eliminar duplicados
     const fechasUnicas = [...new Set(fechasNormalizadas)].sort();
 
-    db.setDiasNoLaborables(fechasUnicas);
+    await db.setDiasNoLaborables(fechasUnicas);
     revalidatePath("/admin", "layout");
     revalidatePath("/admin/disponibilidad", "layout");
     revalidatePath("/", "layout");
     
-    const dias = db.getDiasNoLaborables();
+    const dias = await db.getDiasNoLaborables();
     return { success: true, diasNoLaborables: dias, fechasBloqueadas: dias };
   } catch (error: any) {
     console.error('Error al actualizar días no laborables en lote:', error);
