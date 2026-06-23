@@ -56,6 +56,9 @@ function getRedis(): Redis {
   }
   
   const redisOptions = {
+    tls: {
+      rejectUnauthorized: false
+    },
     maxRetriesPerRequest: 3,
     connectTimeout: 5000,
     retryStrategy(times: number) {
@@ -75,6 +78,7 @@ function getRedis(): Redis {
     }
     newInstance = (global as any).redis;
   }
+
 
   // Attach error and connection listeners aggressively
   newInstance.on('error', (err) => console.error('Fallo Redis:', err));
