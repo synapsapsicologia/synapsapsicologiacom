@@ -9,7 +9,8 @@ import {
   completarCitaAccion,
   eliminarCitaAccion,
   getCalendarioConfigAccion,
-  actualizarEstadoCitaAccion
+  actualizarEstadoCitaAccion,
+  actualizarPagoCitaAccion
 } from '@/app/actions';
 import { 
   Calendar as CalendarIcon, 
@@ -28,7 +29,8 @@ import {
   Trash2,
   Phone,
   Mail,
-  MessageCircle
+  MessageCircle,
+  Coins
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -205,6 +207,16 @@ export default function AdminDashboard() {
       await cargarDatos();
     } else {
       alert(res.error || 'Error al actualizar el estado de la cita.');
+    }
+  };
+
+  const handleTogglePago = async (citaId: string, estadoPagoActual: boolean) => {
+    const nuevoEstadoPago = !estadoPagoActual;
+    const res = await actualizarPagoCitaAccion(citaId, nuevoEstadoPago);
+    if (res.success) {
+      await cargarDatos();
+    } else {
+      alert(res.error || 'Error al actualizar el pago de la cita.');
     }
   };
 
@@ -556,7 +568,21 @@ export default function AdminDashboard() {
 
                     {/* Acciones y estado */}
                     <div className="flex flex-col items-end justify-between gap-3 min-w-[150px] border-t md:border-t-0 pt-4 md:pt-0 border-zinc-200/60">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Botón de Pago Independiente */}
+                        <button
+                          onClick={() => handleTogglePago(cita.id, !!cita.pagado)}
+                          className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full border transition flex items-center space-x-1 shadow-xs cursor-pointer ${
+                            cita.pagado
+                              ? 'bg-blue-50 text-blue-800 border-blue-200 hover:bg-blue-105'
+                              : 'bg-zinc-50 text-zinc-400 border-zinc-200 hover:bg-blue-50/20 hover:text-blue-600 hover:border-blue-300'
+                          }`}
+                          title={cita.pagado ? "Pago registrado (Haga clic para revertir)" : "Haga clic para registrar pago"}
+                        >
+                          <Coins className="w-3 h-3" />
+                          <span>{cita.pagado ? 'Pagado' : 'Marcar Pago'}</span>
+                        </button>
+
                         <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${obtenerEstiloEstado(cita.estado)}`}>
                           {obtenerNombreEstado(cita.estado)}
                         </span>
@@ -600,7 +626,6 @@ export default function AdminDashboard() {
                           onChange={(e) => handleChangeEstado(cita.id, e.target.value)}
                           className="bg-white border border-zinc-300 rounded-xl px-2.5 py-1.5 text-xs text-zinc-850 font-semibold focus:outline-none focus:ring-2 focus:ring-sage-500/20 focus:border-sage-500 outline-none transition cursor-pointer shadow-xs max-w-[170px] truncate"
                         >
-                          <option value="pagado">Pagado</option>
                           <option value="pendiente">Pendiente</option>
                           <option value="reprogramada_cancelada">Reprogramada pero cancelada</option>
                           <option value="reprogramada_no_cancelada">Reprogramada pero NO cancelada</option>
@@ -698,13 +723,6 @@ export default function AdminDashboard() {
                             title="Cancelar"
                           >
                             <X className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => abrirModalEliminar(cita.id)}
-                            className="bg-stone-50 hover:bg-stone-150 text-stone-600 p-1.5 rounded-lg border border-stone-200 transition"
-                            title="Eliminar"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
                           </button>
                         </div>
                       </td>

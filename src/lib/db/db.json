@@ -4619,18 +4619,6 @@
       "googleCalendarId": "3lk73hrn3n1qm40gjhill18prb@google.com"
     },
     {
-      "id": "cit-1782186555450-59ge",
-      "pacienteId": "pac-1781118969116-24-f8b6",
-      "fecha": "2026-06-11",
-      "horaInicio": "21:00",
-      "horaFin": "22:00",
-      "estado": "confirmada",
-      "modalidad": "virtual",
-      "linkReunion": "",
-      "notasSesion": "Tipo de sesión: Consulta\nDescripción: Sesion psicologica",
-      "googleCalendarId": "46gifvdoisdspbnknl9hj2lhvn@google.com"
-    },
-    {
       "id": "cit-1782186555450-0sik",
       "pacienteId": "pac-1782186555448-oj8k",
       "fecha": "2025-04-03",
@@ -9623,18 +9611,6 @@
       "googleCalendarId": "65e5h4a5ht631rddtn3ceo1fdm@google.com"
     },
     {
-      "id": "cit-1782186555468-o1hg",
-      "pacienteId": "pac-1782186555449-1uyh",
-      "fecha": "2026-06-03",
-      "horaInicio": "19:00",
-      "horaFin": "20:00",
-      "estado": "confirmada",
-      "modalidad": "virtual",
-      "linkReunion": "",
-      "notasSesion": "Tipo de sesión: Consulta\nDescripción: TERAPIA PSICOLOGICA",
-      "googleCalendarId": "cr9c0sp8sjadqg4ial8qfilegs@google.com"
-    },
-    {
       "id": "cit-1782186555468-3cao",
       "pacienteId": "pac-1782186555461-4uiz",
       "fecha": "2024-04-24",
@@ -9712,11 +9688,12 @@
       "fecha": "2026-06-03",
       "horaInicio": "21:00",
       "horaFin": "22:00",
-      "estado": "confirmada",
+      "estado": "completada",
       "modalidad": "virtual",
       "linkReunion": "",
       "notasSesion": "Tipo de sesión: Consulta\nDescripción: Sesion 2",
-      "googleCalendarId": "16hi5m57a8glu9aoc8bcgb8alg@google.com"
+      "googleCalendarId": "16hi5m57a8glu9aoc8bcgb8alg@google.com",
+      "pagado": true
     },
     {
       "id": "cit-1782186555469-ivmy",

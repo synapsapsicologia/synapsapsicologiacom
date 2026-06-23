@@ -19,12 +19,13 @@ export interface Cita {
   fecha: string; // YYYY-MM-DD
   horaInicio: string; // HH:MM
   horaFin: string; // HH:MM
-  estado: 'pendiente' | 'confirmada' | 'cancelada' | 'completada';
+  estado: 'pendiente' | 'confirmada' | 'cancelada' | 'completada' | string;
   modalidad: 'virtual' | 'presencial';
   linkReunion: string;
   notasSesion: string;
   googleCalendarId: string;
   recordatorioEnviado?: boolean;
+  pagado?: boolean;
 }
 
 export interface Disponibilidad {

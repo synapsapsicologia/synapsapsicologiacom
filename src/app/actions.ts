@@ -187,8 +187,9 @@ export async function getDashboardStatsAccion() {
     // 1. Citas de hoy (cualquier estado excepto cancelada)
     const citasHoy = citas.filter(c => c.fecha === hoyString && c.estado !== 'cancelada');
 
-    // 2. Pacientes totales
-    const totalPacientes = pacientes.length;
+    // 2. Pacientes totales (REAL de pacientes únicos filtrando por nombre)
+    const nombresUnicos = new Set(pacientes.map(p => p.nombreCompleto.trim().toLowerCase()));
+    const totalPacientes = nombresUnicos.size;
 
     // 3. Citas canceladas este mes
     const citasCanceladasMes = citas.filter(c => {
@@ -360,6 +361,10 @@ export async function eliminarCitaAccion(citaId: string, notificarPaciente: bool
 
     // 2. Eliminar físicamente del db.json
     const eliminado = db.deleteCita(citaId);
+    revalidatePath("/admin");
+    revalidatePath("/admin/disponibilidad");
+    revalidatePath("/admin/pacientes");
+    revalidatePath("/");
     return { success: eliminado };
   } catch (error: any) {
     console.error('Error al eliminar cita:', error);
@@ -392,6 +397,19 @@ export async function actualizarEstadoCitaAccion(citaId: string, nuevoEstado: st
     return { success: true, cita: actualizado };
   } catch (error: any) {
     console.error('Error al actualizar estado de cita:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function actualizarPagoCitaAccion(citaId: string, pagado: boolean) {
+  try {
+    const actualizado = db.updateCita(citaId, { pagado });
+    revalidatePath("/admin");
+    revalidatePath("/admin/pacientes");
+    revalidatePath("/");
+    return { success: true, cita: actualizado };
+  } catch (error: any) {
+    console.error('Error al actualizar pago de cita:', error);
     return { success: false, error: error.message };
   }
 }
@@ -467,18 +485,48 @@ export async function actualizarDiaBloqueoAccion(id: string, bloqueado: boolean)
 }
 
 // Helper para normalizar la fecha a formato YYYY-MM-DD
-function normalizarFecha(fecha: string): string {
+function normalizarFecha(fecha: any): string {
   if (!fecha) return '';
-  const trimmed = fecha.trim();
+
+  // Si es un objeto Date
+  if (fecha instanceof Date) {
+    const year = fecha.getFullYear();
+    const month = String(fecha.getMonth() + 1).padStart(2, '0');
+    const day = String(fecha.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // Si es un objeto genérico (posiblemente un Date serializado o similar)
+  if (typeof fecha === 'object') {
+    try {
+      const d = new Date(fecha);
+      if (!isNaN(d.getTime())) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+    } catch (_) {}
+  }
+
+  const trimmed = String(fecha).trim();
+
   // Formato DD/MM/YYYY -> YYYY-MM-DD
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
     const [d, m, y] = trimmed.split('/');
     return `${y}-${m}-${d}`;
   }
+
   // Formato YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
     return trimmed;
   }
+
+  // Si contiene 'T', es un ISO string
+  if (trimmed.includes('T')) {
+    return trimmed.split('T')[0];
+  }
+
   // En cualquier otro caso, intentar usar Date
   try {
     const d = new Date(trimmed);
@@ -491,15 +539,19 @@ function normalizarFecha(fecha: string): string {
   } catch (e) {
     // ignorar
   }
+
   return trimmed;
 }
 
 /**
  * Agrega un día festivo o no laborable (vacaciones)
  */
-export async function agregarDiaNoLaborableAccion(fecha: string) {
+export async function agregarDiaNoLaborableAccion(fecha: any) {
   try {
     const fechaNormalizada = normalizarFecha(fecha);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fechaNormalizada)) {
+      throw new Error('Formato de fecha inválido. Utilice YYYY-MM-DD.');
+    }
     db.addDiaNoLaborable(fechaNormalizada);
     revalidatePath("/admin");
     revalidatePath("/admin/disponibilidad");
@@ -515,7 +567,7 @@ export async function agregarDiaNoLaborableAccion(fecha: string) {
 /**
  * Elimina un día festivo o no laborable de la lista
  */
-export async function eliminarDiaNoLaborableAccion(fecha: string) {
+export async function eliminarDiaNoLaborableAccion(fecha: any) {
   try {
     const fechaNormalizada = normalizarFecha(fecha);
     db.removeDiaNoLaborable(fechaNormalizada);
@@ -533,13 +585,21 @@ export async function eliminarDiaNoLaborableAccion(fecha: string) {
 /**
  * Actualiza en lote todos los días festivos o no laborables (vacaciones)
  */
-export async function actualizarDiasNoLaborablesLoteAccion(fechas: string[]) {
+export async function actualizarDiasNoLaborablesLoteAccion(fechas: any) {
   try {
-    const fechasNormalizadas = fechas.map(f => normalizarFecha(f));
-    db.setDiasNoLaborables(fechasNormalizadas);
+    const arrayFechas = Array.isArray(fechas) ? fechas : (fechas ? [fechas] : []);
+    const fechasNormalizadas = arrayFechas
+      .map(f => normalizarFecha(f))
+      .filter(f => /^\d{4}-\d{2}-\d{2}$/.test(f));
+
+    // Eliminar duplicados
+    const fechasUnicas = [...new Set(fechasNormalizadas)].sort();
+
+    db.setDiasNoLaborables(fechasUnicas);
     revalidatePath("/admin");
     revalidatePath("/admin/disponibilidad");
     revalidatePath("/");
+    
     const dias = db.getDiasNoLaborables();
     return { success: true, diasNoLaborables: dias, fechasBloqueadas: dias };
   } catch (error: any) {

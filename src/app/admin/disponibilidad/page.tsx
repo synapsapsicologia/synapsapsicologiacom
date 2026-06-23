@@ -129,7 +129,35 @@ export default function DisponibilidadPage() {
   const handleGuardarFechasLote = async () => {
     setCargandoLote(true);
     try {
-      const res = await actualizarDiasNoLaborablesLoteAccion(fechasSeleccionadas);
+      // Asegurar formato de strings YYYY-MM-DD explícitamente
+      const fechasFormateadas = fechasSeleccionadas.map(f => {
+        if (!f) return '';
+        if ((f as any) instanceof Date) {
+          const year = (f as any).getFullYear();
+          const month = String((f as any).getMonth() + 1).padStart(2, '0');
+          const day = String((f as any).getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+        if (typeof f === 'string') {
+          const trimmed = f.trim();
+          if (trimmed.includes('T')) {
+            return trimmed.split('T')[0];
+          }
+          return trimmed;
+        }
+        try {
+          const d = new Date(f as any);
+          if (!isNaN(d.getTime())) {
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+          }
+        } catch (_) {}
+        return String(f);
+      }).filter(f => /^\d{4}-\d{2}-\d{2}$/.test(f));
+
+      const res = await actualizarDiasNoLaborablesLoteAccion(fechasFormateadas);
       if (res.success) {
         setDiasNoLaborables(res.diasNoLaborables || []);
         setFechasSeleccionadas(res.diasNoLaborables || []);
@@ -147,7 +175,9 @@ export default function DisponibilidadPage() {
   // Eliminar día no laborable desde el listado inferior
   const handleEliminarFeriado = async (fecha: string) => {
     if (confirm(`¿Estás seguro de que deseas habilitar nuevamente las reservas para el día ${fecha}?`)) {
-      const res = await eliminarDiaNoLaborableAccion(fecha);
+      // Garantizar formato string ISO plano
+      const fechaNormalizada = typeof fecha === 'string' && fecha.includes('T') ? fecha.split('T')[0] : String(fecha);
+      const res = await eliminarDiaNoLaborableAccion(fechaNormalizada);
       if (res.success) {
         setDiasNoLaborables(res.diasNoLaborables || []);
         setFechasSeleccionadas(res.diasNoLaborables || []);
