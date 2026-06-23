@@ -48,12 +48,21 @@ let redisInstance: Redis | null = null;
 function getRedis(): Redis {
   if (redisInstance) return redisInstance;
   
-  const url = process.env.REDIS_URL;
-  console.log('URL de Redis:', url ? url.substring(0, 15) + '...' : 'NO DEFINIDA');
+  const url = process.env.REDIS_URL || '';
+  console.log('URL de Redis original:', url ? url.substring(0, 15) + '...' : 'NO DEFINIDA');
   
   if (!url) {
     throw new Error('REDIS_URL environment variable is not defined.');
   }
+
+  // Saneador de URL robusto
+  let urlSaneada = url.trim();
+  if (!urlSaneada.startsWith('redis://') && !urlSaneada.startsWith('rediss://')) {
+    // Limpiar barras inclinadas sobrantes al inicio y forzar protocolo seguro rediss://
+    urlSaneada = urlSaneada.replace(/^\/+/, '');
+    urlSaneada = `rediss://${urlSaneada}`;
+  }
+  console.log('URL de Redis saneada:', urlSaneada ? urlSaneada.substring(0, 20) + '...' : 'NO DEFINIDA');
   
   const redisOptions = {
     tls: {
@@ -71,13 +80,14 @@ function getRedis(): Redis {
 
   let newInstance: Redis;
   if (process.env.NODE_ENV === 'production') {
-    newInstance = new Redis(url, redisOptions);
+    newInstance = new Redis(urlSaneada, redisOptions);
   } else {
     if (!(global as any).redis) {
-      (global as any).redis = new Redis(url, redisOptions);
+      (global as any).redis = new Redis(urlSaneada, redisOptions);
     }
     newInstance = (global as any).redis;
   }
+
 
 
   // Attach error and connection listeners aggressively
