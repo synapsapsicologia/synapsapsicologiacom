@@ -53,16 +53,28 @@ function getRedis(): Redis {
     throw new Error('REDIS_URL environment variable is not defined.');
   }
   
+  const redisOptions = {
+    maxRetriesPerRequest: 3,
+    connectTimeout: 5000,
+    retryStrategy(times: number) {
+      if (times > 3) {
+        return null; // Stop retrying after 3 attempts
+      }
+      return Math.min(times * 100, 2000);
+    }
+  };
+
   if (process.env.NODE_ENV === 'production') {
-    redisInstance = new Redis(url);
+    redisInstance = new Redis(url, redisOptions);
   } else {
     if (!(global as any).redis) {
-      (global as any).redis = new Redis(url);
+      (global as any).redis = new Redis(url, redisOptions);
     }
     redisInstance = (global as any).redis;
   }
   return redisInstance!;
 }
+
 
 // Lectura asíncrona de Redis para evitar problemas de concurrencia
 export async function readDB(): Promise<Database> {
