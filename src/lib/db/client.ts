@@ -44,7 +44,10 @@ export interface Database {
 }
 
 const redis = new Redis(process.env.REDIS_URL!, {
-  tls: { rejectUnauthorized: false }
+  tls: { rejectUnauthorized: false },
+  connectTimeout: 10000, // Aumentar timeout
+  maxRetriesPerRequest: 3, // Reducir reintentos para fallar rápido y liberar
+  keepAlive: 100, // Mantener viva la conexión brevemente
 });
 redis.on('error', (err) => {
   console.error('Redis Connection Error:', err.message);
@@ -53,6 +56,22 @@ export { redis };
 
 // Lectura asíncrona de Redis para evitar problemas de concurrencia
 export async function readDB(): Promise<Database> {
+  const initialDb: Database = {
+    pacientes: [],
+    citas: [],
+    disponibilidad: [
+      { id: 'disp-1', diaSemana: 1, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
+      { id: 'disp-2', diaSemana: 2, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
+      { id: 'disp-3', diaSemana: 3, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
+      { id: 'disp-4', diaSemana: 4, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
+      { id: 'disp-5', diaSemana: 5, horaInicio: '19:00', horaFin: '21:00', bloqueado: true },
+      { id: 'disp-6', diaSemana: 6, horaInicio: '19:00', horaFin: '21:00', bloqueado: true },
+      { id: 'disp-0', diaSemana: 0, horaInicio: '19:00', horaFin: '21:00', bloqueado: true }
+    ],
+    diasNoLaborables: [],
+    fechasBloqueadas: []
+  };
+
   try {
     const [pacientesStr, citasStr, disponibilidadStr, diasNoLaborablesStr, fechasBloqueadasStr] = await Promise.all([
       redis.get('synapsa:pacientes'),
@@ -61,22 +80,6 @@ export async function readDB(): Promise<Database> {
       redis.get('synapsa:diasNoLaborables'),
       redis.get('synapsa:fechasBloqueadas')
     ]);
-
-    const initialDb: Database = {
-      pacientes: [],
-      citas: [],
-      disponibilidad: [
-        { id: 'disp-1', diaSemana: 1, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
-        { id: 'disp-2', diaSemana: 2, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
-        { id: 'disp-3', diaSemana: 3, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
-        { id: 'disp-4', diaSemana: 4, horaInicio: '19:00', horaFin: '22:00', bloqueado: false },
-        { id: 'disp-5', diaSemana: 5, horaInicio: '19:00', horaFin: '21:00', bloqueado: true },
-        { id: 'disp-6', diaSemana: 6, horaInicio: '19:00', horaFin: '21:00', bloqueado: true },
-        { id: 'disp-0', diaSemana: 0, horaInicio: '19:00', horaFin: '21:00', bloqueado: true }
-      ],
-      diasNoLaborables: [],
-      fechasBloqueadas: []
-    };
 
     const parseValue = (val: any, fallback: any) => {
       if (val === null || val === undefined) return fallback;
@@ -99,7 +102,7 @@ export async function readDB(): Promise<Database> {
     };
   } catch (error) {
     console.error("ERROR CRÍTICO EN REDIS (readDB):", error);
-    throw error;
+    return initialDb; // Devuelve valores vacíos/por defecto en lugar de colapsar
   }
 }
 
