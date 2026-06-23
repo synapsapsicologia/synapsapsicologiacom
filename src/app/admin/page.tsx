@@ -105,6 +105,7 @@ export default function AdminDashboard() {
   // Fecha seleccionada para el detalle diario
   const hoyStr = new Date().toISOString().split('T')[0];
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(hoyStr);
+  const [filtroEstado, setFiltroEstado] = useState<string>('todos');
 
   // Navegación de mes del calendario
   const [mesActual, setMesActual] = useState(new Date().getMonth());
@@ -240,6 +241,12 @@ export default function AdminDashboard() {
 
   // Citas del día seleccionado
   const citasDelDiaSeleccionado = todasCitas.filter(c => c.fecha === fechaSeleccionada);
+
+  // Filtrar según el estado seleccionado en el dropdown
+  const citasFiltradas = citasDelDiaSeleccionado.filter(c => {
+    if (filtroEstado === 'todos') return true;
+    return c.estado === filtroEstado;
+  });
 
   // Formatear fecha para detalle
   const formatearFechaEsp = (fechaStr: string) => {
@@ -443,10 +450,28 @@ export default function AdminDashboard() {
 
         {/* DETALLE DEL DÍA SELECCIONADO (7 columnas) */}
         <div className="lg:col-span-7 bg-white rounded-2xl shadow-xs border border-cream-200 p-6 flex flex-col min-h-[350px]">
-          <h3 className="font-extrabold text-charcoal-900 text-md border-b border-cream-150 pb-3 mb-4 flex items-center justify-between">
-            <span>Agenda Diaria</span>
+          <h3 className="font-extrabold text-charcoal-900 text-md border-b border-cream-150 pb-3 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center space-x-2">
+              <span>Agenda Diaria</span>
+              <select
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+                className="bg-white border border-cream-200 rounded-lg px-2 py-1 text-xs text-charcoal-700 font-semibold focus:outline-none focus:ring-1 focus:ring-sage-500 outline-none transition cursor-pointer"
+              >
+                <option value="todos">Todos los estados</option>
+                <option value="pagado">Pagado</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="reprogramada_cancelada">Reprogramada pero cancelada</option>
+                <option value="reprogramada_no_cancelada">Reprogramada pero NO cancelada</option>
+                <option value="reembolso">Reembolso</option>
+                <option value="estudiante">Calidad de estudiante</option>
+                <option value="confirmada">Confirmada</option>
+                <option value="completada">Completada</option>
+                <option value="cancelada">Cancelada</option>
+              </select>
+            </div>
             <span className="text-xs font-normal text-zinc-500 lowercase">
-              {citasDelDiaSeleccionado.length} {citasDelDiaSeleccionado.length === 1 ? 'cita' : 'citas'}
+              {citasFiltradas.length} {citasFiltradas.length === 1 ? 'cita' : 'citas'}
             </span>
           </h3>
           
@@ -455,13 +480,17 @@ export default function AdminDashboard() {
           </p>
 
           <div className="flex-1 space-y-4 overflow-y-auto max-h-[550px] pr-1">
-            {citasDelDiaSeleccionado.length === 0 ? (
+            {citasFiltradas.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-12 text-charcoal-700 space-y-2 border border-dashed border-zinc-200 rounded-2xl">
                 <CalendarIcon className="w-8 h-8 text-zinc-350" />
-                <p className="text-xs text-zinc-500">No hay citas programadas para este día.</p>
+                <p className="text-xs text-zinc-500">
+                  {citasDelDiaSeleccionado.length === 0 
+                    ? "No hay citas programadas para este día."
+                    : "No hay citas con este estado para el día seleccionado."}
+                </p>
               </div>
             ) : (
-              citasDelDiaSeleccionado.map((cita) => {
+              citasFiltradas.map((cita) => {
                 const esPendiente = cita.estado === 'pendiente';
                 const esConfirmada = cita.estado === 'confirmada';
                 const esCompletada = cita.estado === 'completada';

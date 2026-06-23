@@ -173,7 +173,7 @@ export async function enviarEmailConfirmacionPaciente(params: {
   const diaSemana = fechaObj.getDay();
   // 5 = Viernes, 6 = Sábado, 0 = Domingo
   const esFinDeSemana = diaSemana === 5 || diaSemana === 6 || diaSemana === 0;
-  const tarifaTexto = esFinDeSemana ? '$17 a cancelar' : '$12 a cancelar';
+  const tarifaTexto = esFinDeSemana ? '$17 a cancelar (Fin de semana)' : '$12 para días de semana a cancelar';
 
   const modalDesc = 'Consulta 100% en Línea (Vía Google Meet)';
 
