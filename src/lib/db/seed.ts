@@ -26,20 +26,32 @@ function loadEnv() {
 async function main() {
   loadEnv();
   
-  const redisUrl = process.env.REDIS_URL;
+  const redisUrl = process.env.KV_URL || process.env.REDIS_URL;
   if (!redisUrl) {
-    console.error('❌ Error: REDIS_URL not found in environment variables or .env.local/.env files.');
+    console.error('❌ Error: KV_URL or REDIS_URL not found in environment variables or .env.local/.env files.');
     process.exit(1);
   }
   
+  // Saneador de URL robusto
+  let urlSaneada = redisUrl.trim();
+  if (!urlSaneada.startsWith('redis://') && !urlSaneada.startsWith('rediss://')) {
+    // Limpiar barras inclinadas sobrantes al inicio y forzar protocolo seguro rediss://
+    urlSaneada = urlSaneada.replace(/^\/+/, '');
+    urlSaneada = `rediss://${urlSaneada}`;
+  }
+  
   // Safe mask for logging
-  const maskedUrl = redisUrl.replace(/:[^:@]+@/, ':****@');
+  const maskedUrl = urlSaneada.replace(/:[^:@]+@/, ':****@');
   console.log(`🔌 Connecting to Redis using URL: ${maskedUrl}`);
   
-  const redis = new Redis(redisUrl, {
+  const redis = new Redis(urlSaneada, {
+    tls: {
+      rejectUnauthorized: false
+    },
     maxRetriesPerRequest: 3,
     connectTimeout: 10000,
   });
+
   
   const dbPath = path.resolve(process.cwd(), 'src/lib/db/db.json');
   if (!fs.existsSync(dbPath)) {

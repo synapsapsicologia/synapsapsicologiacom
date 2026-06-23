@@ -1,4 +1,4 @@
-import Redis from 'ioredis';
+import { kv } from '@vercel/kv';
 
 export interface Paciente {
   id: string;
@@ -43,71 +43,15 @@ export interface Database {
   fechasBloqueadas: string[];
 }
 
-let redisInstance: Redis | null = null;
-
-function getRedis(): Redis {
-  if (redisInstance) return redisInstance;
-  
-  const url = process.env.REDIS_URL || '';
-  console.log('URL de Redis original:', url ? url.substring(0, 15) + '...' : 'NO DEFINIDA');
-  
-  if (!url) {
-    throw new Error('REDIS_URL environment variable is not defined.');
-  }
-
-  // Saneador de URL robusto
-  let urlSaneada = url.trim();
-  if (!urlSaneada.startsWith('redis://') && !urlSaneada.startsWith('rediss://')) {
-    // Limpiar barras inclinadas sobrantes al inicio y forzar protocolo seguro rediss://
-    urlSaneada = urlSaneada.replace(/^\/+/, '');
-    urlSaneada = `rediss://${urlSaneada}`;
-  }
-  console.log('URL de Redis saneada:', urlSaneada ? urlSaneada.substring(0, 20) + '...' : 'NO DEFINIDA');
-  
-  const redisOptions = {
-    tls: {
-      rejectUnauthorized: false
-    },
-    maxRetriesPerRequest: 3,
-    connectTimeout: 5000,
-    retryStrategy(times: number) {
-      if (times > 3) {
-        return null; // Stop retrying after 3 attempts
-      }
-      return Math.min(times * 100, 2000);
-    }
-  };
-
-  let newInstance: Redis;
-  if (process.env.NODE_ENV === 'production') {
-    newInstance = new Redis(urlSaneada, redisOptions);
-  } else {
-    if (!(global as any).redis) {
-      (global as any).redis = new Redis(urlSaneada, redisOptions);
-    }
-    newInstance = (global as any).redis;
-  }
-
-
-
-  // Attach error and connection listeners aggressively
-  newInstance.on('error', (err) => console.error('Fallo Redis:', err));
-  newInstance.on('connect', () => console.log('Conectado a Redis con éxito'));
-  
-  redisInstance = newInstance;
-  return redisInstance;
-}
-
-// Lectura asíncrona de Redis para evitar problemas de concurrencia
+// Lectura asíncrona de Vercel KV para evitar problemas de concurrencia
 export async function readDB(): Promise<Database> {
   try {
-    const r = getRedis();
     const [pacientesStr, citasStr, disponibilidadStr, diasNoLaborablesStr, fechasBloqueadasStr] = await Promise.all([
-      r.get('synapsa:pacientes'),
-      r.get('synapsa:citas'),
-      r.get('synapsa:disponibilidad'),
-      r.get('synapsa:diasNoLaborables'),
-      r.get('synapsa:fechasBloqueadas')
+      kv.get<any>('synapsa:pacientes'),
+      kv.get<any>('synapsa:citas'),
+      kv.get<any>('synapsa:disponibilidad'),
+      kv.get<any>('synapsa:diasNoLaborables'),
+      kv.get<any>('synapsa:fechasBloqueadas')
     ]);
 
     const initialDb: Database = {
@@ -126,12 +70,26 @@ export async function readDB(): Promise<Database> {
       fechasBloqueadas: []
     };
 
+    // Vercel KV parses JSON automatically if it is returned as an object/array,
+    // but can return strings depending on the KV configuration/API. We handle both.
+    const parseValue = (val: any, fallback: any) => {
+      if (val === null || val === undefined) return fallback;
+      if (typeof val === 'string') {
+        try {
+          return JSON.parse(val);
+        } catch {
+          return fallback;
+        }
+      }
+      return val;
+    };
+
     return {
-      pacientes: pacientesStr ? JSON.parse(pacientesStr) : initialDb.pacientes,
-      citas: citasStr ? JSON.parse(citasStr) : initialDb.citas,
-      disponibilidad: disponibilidadStr ? JSON.parse(disponibilidadStr) : initialDb.disponibilidad,
-      diasNoLaborables: diasNoLaborablesStr ? JSON.parse(diasNoLaborablesStr) : initialDb.diasNoLaborables,
-      fechasBloqueadas: fechasBloqueadasStr ? JSON.parse(fechasBloqueadasStr) : initialDb.fechasBloqueadas
+      pacientes: parseValue(pacientesStr, initialDb.pacientes),
+      citas: parseValue(citasStr, initialDb.citas),
+      disponibilidad: parseValue(disponibilidadStr, initialDb.disponibilidad),
+      diasNoLaborables: parseValue(diasNoLaborablesStr, initialDb.diasNoLaborables),
+      fechasBloqueadas: parseValue(fechasBloqueadasStr, initialDb.fechasBloqueadas)
     };
   } catch (error) {
     console.error("ERROR CRÍTICO EN REDIS (readDB):", error);
@@ -139,16 +97,16 @@ export async function readDB(): Promise<Database> {
   }
 }
 
-// Escritura asíncrona en Redis
+// Escritura asíncrona en Vercel KV
 export async function writeDB(db: Database): Promise<void> {
   try {
-    const r = getRedis();
+    // Vercel KV serializa objetos y arreglos automáticamente.
     await Promise.all([
-      r.set('synapsa:pacientes', JSON.stringify(db.pacientes)),
-      r.set('synapsa:citas', JSON.stringify(db.citas)),
-      r.set('synapsa:disponibilidad', JSON.stringify(db.disponibilidad)),
-      r.set('synapsa:diasNoLaborables', JSON.stringify(db.diasNoLaborables)),
-      r.set('synapsa:fechasBloqueadas', JSON.stringify(db.fechasBloqueadas))
+      kv.set('synapsa:pacientes', db.pacientes),
+      kv.set('synapsa:citas', db.citas),
+      kv.set('synapsa:disponibilidad', db.disponibilidad),
+      kv.set('synapsa:diasNoLaborables', db.diasNoLaborables),
+      kv.set('synapsa:fechasBloqueadas', db.fechasBloqueadas)
     ]);
   } catch (error) {
     console.error("ERROR CRÍTICO EN REDIS (writeDB):", error);
