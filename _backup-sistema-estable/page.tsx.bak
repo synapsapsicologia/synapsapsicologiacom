@@ -47,7 +47,17 @@ export default function BookingPage() {
   }, []);
 
   // --- ESTADO DEL CUESTIONARIO (TRIAGE) ---
+  const [mostrarTriage, setMostrarTriage] = useState<boolean>(false);
   const [pasoTriage, setPasoTriage] = useState<number>(1);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMousePos({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
   const [triageParaQuien, setTriageParaQuien] = useState<string>('');
   const [triageTipoProceso, setTriageTipoProceso] = useState<string>('');
   const [triageMotivo, setTriageMotivo] = useState<string>('');
@@ -56,14 +66,12 @@ export default function BookingPage() {
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>('');
   const [slotSeleccionado, setSlotSeleccionado] = useState<Slot | null>(null);
   
-  // Datos del formulario de contacto y facturación
+  // Datos del formulario de contacto
   const [nombreCompleto, setNombreCompleto] = useState('');
   const [email, setEmail] = useState('');
   const [telefono, setTelefono] = useState('');
   const [fechaNacimiento, setFechaNacimiento] = useState('');
   const [motivoConsultaDetalle, setMotivoConsultaDetalle] = useState('');
-  const [dui, setDui] = useState('');
-  const [direccionCompleta, setDireccionCompleta] = useState('');
 
   // Estados de carga e información de respuesta
   const [cargandoSlots, setCargandoSlots] = useState(false);
@@ -149,14 +157,6 @@ export default function BookingPage() {
     setEnviando(true);
     setErrorEnvio('');
 
-    // Validar DUI salvadoreño (8 dígitos - 1 dígito)
-    const duiRegex = /^\d{8}-\d$/;
-    if (!duiRegex.test(dui)) {
-      setErrorEnvio('El DUI ingresado no tiene un formato válido (00000000-0).');
-      setEnviando(false);
-      return;
-    }
-
     // Consolidar el triage en el motivo de la consulta
     const motivoConsolidado = `[Triage] Sesión para: ${triageParaQuien} | Proceso: ${triageTipoProceso} | Enfoque: ${triageMotivo}. Detalle: ${motivoConsultaDetalle}`;
 
@@ -168,9 +168,7 @@ export default function BookingPage() {
       fecha: fechaSeleccionada,
       horaInicio: slotSeleccionado.horaInicio24,
       modalidad: 'virtual', // Exclusivo online
-      motivoConsulta: motivoConsolidado,
-      dui,
-      direccionCompleta
+      motivoConsulta: motivoConsolidado
     });
 
     setEnviando(false);
@@ -197,11 +195,95 @@ export default function BookingPage() {
     return date.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   };
 
-  const esFechaBloqueada = fechaSeleccionada ? (
-    citasSlots.esDiaNoLaborable || 
-    (config.diasNoLaborables && config.diasNoLaborables.includes(fechaSeleccionada)) ||
-    ((config as any).fechasBloqueadas && (config as any).fechasBloqueadas.includes(fechaSeleccionada))
-  ) : false;
+  // Si no se ha completado la reserva y no se ha activado el triage, mostrar la pantalla de bienvenida (Hero Premium)
+  if (!reservaExitosa && !mostrarTriage) {
+    return (
+      <div 
+        onMouseMove={handleMouseMove}
+        className="min-h-screen bg-zinc-50 text-zinc-900 relative flex flex-col items-center justify-between overflow-hidden font-sans select-none p-8"
+      >
+        {/* Aura de luz natural que sigue al cursor */}
+        <div 
+          className="absolute w-[500px] h-[500px] bg-gradient-to-r from-emerald-200/30 to-amber-100/20 rounded-full blur-[120px] pointer-events-none transition-transform duration-300 ease-out"
+          style={{
+            position: 'absolute',
+            left: `${mousePos.x - 250}px`,
+            top: `${mousePos.y - 250}px`,
+            transform: 'translate3d(0, 0, 0)'
+          }}
+        ></div>
+
+        {/* Textos Editorial Periféricos */}
+        <div className="absolute top-8 left-8 text-[10px] tracking-widest text-zinc-500 uppercase font-mono">
+          Synapsa &reg; / Clinica
+        </div>
+        
+        <div className="absolute top-8 right-8 text-[10px] tracking-widest text-zinc-500 uppercase font-mono text-right">
+          San Salvador, SV
+        </div>
+
+        <div className="absolute bottom-8 left-8 text-[10px] tracking-widest text-zinc-500 uppercase font-mono">
+          Portfolio / 2026
+        </div>
+
+        <div className="absolute bottom-8 right-8 text-[10px] tracking-widest text-zinc-500 uppercase font-mono text-right">
+          Consulta 100% Online
+        </div>
+
+        {/* CONTENIDO PRINCIPAL CENTRADO */}
+        <main className="flex-1 flex flex-col items-center justify-center text-center max-w-2xl mx-auto z-10 space-y-12">
+          
+          {/* Cabecera / Identidad */}
+          <div className="space-y-4">
+            <h1 className="text-6xl md:text-8xl font-light tracking-tight text-zinc-900 select-text italic">
+              Selena Gálvez
+            </h1>
+            <p className="text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] font-sans">
+              Psicóloga Clínica
+            </p>
+          </div>
+
+          <div className="max-w-md mx-auto">
+            <p className="text-zinc-500 text-sm md:text-base leading-relaxed font-normal">
+              Un enfoque terapéutico enfocado en la serenidad, la salud mental y el bienestar emocional del paciente recurrente y nuevo.
+            </p>
+          </div>
+
+          {/* Botones estilo pill minimalistas */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
+            <button
+              onClick={() => {
+                setMostrarTriage(true);
+                setPasoTriage(1);
+              }}
+              type="button"
+              className="w-full sm:w-auto border border-zinc-400 hover:border-zinc-800 text-zinc-800 hover:text-zinc-950 font-semibold px-8 py-3 rounded-full text-xs tracking-widest transition-all duration-300 bg-transparent flex items-center justify-center space-x-2 group cursor-pointer"
+            >
+              <span>AGENDAR CITA</span>
+              <span className="font-mono text-[10px] opacity-70 group-hover:translate-x-0.5 transition-transform">→</span>
+            </button>
+            
+            <button
+              onClick={() => {
+                setTriageParaQuien('Paciente Recurrente');
+                setTriageTipoProceso('Sesión de Seguimiento');
+                setTriageMotivo('Seguimiento');
+                setMotivoConsultaDetalle('Paciente Recurrente - Agenda Directa');
+                setMostrarTriage(true);
+                setPasoTriage(4);
+              }}
+              type="button"
+              className="w-full sm:w-auto border border-zinc-400 hover:border-zinc-800 text-zinc-800 hover:text-zinc-950 font-semibold px-8 py-3 rounded-full text-xs tracking-widest transition-all duration-300 bg-transparent flex items-center justify-center space-x-2 group cursor-pointer"
+            >
+              <span>YA SOY PACIENTE</span>
+              <span className="font-mono text-[10px] opacity-70 group-hover:translate-x-0.5 transition-transform">→</span>
+            </button>
+          </div>
+          
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 bg-cream-100 flex flex-col relative min-h-screen text-charcoal-900">
@@ -306,6 +388,7 @@ export default function BookingPage() {
             <button
               onClick={() => {
                 setReservaExitosa(null);
+                setMostrarTriage(false);
                 setPasoTriage(1);
                 setTriageParaQuien('');
                 setTriageTipoProceso('');
@@ -644,7 +727,7 @@ export default function BookingPage() {
                         <div className="w-8 h-8 border-4 border-sage-600 border-t-transparent rounded-full animate-spin"></div>
                         <p className="text-charcoal-700 text-xs font-semibold">Cargando horarios disponibles...</p>
                       </div>
-                    ) : esFechaBloqueada ? (
+                    ) : citasSlots.esDiaNoLaborable ? (
                       /* DÍA FESTIVO / VACACIONES */
                       <div className="bg-red-50 text-red-700 rounded-xl p-4 flex items-start space-x-3 border border-red-100 text-sm">
                         <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
@@ -810,46 +893,6 @@ export default function BookingPage() {
                       </div>
                     </div>
 
-                    {/* Datos de Facturación (DUI y Dirección) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-charcoal-700 uppercase tracking-wide mb-1.5" htmlFor="dui">
-                          DUI (Consumidor Final)
-                        </label>
-                        <input
-                          type="text"
-                          id="dui"
-                          required
-                          placeholder="00000000-0"
-                          className="w-full bg-cream-50 border border-cream-200 rounded-xl py-3 px-4 text-sm text-charcoal-900 focus:bg-white focus:ring-2 focus:ring-sage-500/20 focus:border-sage-500 outline-none transition"
-                          value={dui}
-                          onChange={(e) => {
-                            const clean = e.target.value.replace(/\D/g, '').slice(0, 9);
-                            if (clean.length > 8) {
-                              setDui(`${clean.slice(0, 8)}-${clean.slice(8)}`);
-                            } else {
-                              setDui(clean);
-                            }
-                          }}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-charcoal-700 uppercase tracking-wide mb-1.5" htmlFor="direccion">
-                          Dirección Completa
-                        </label>
-                        <input
-                          type="text"
-                          id="direccion"
-                          required
-                          placeholder="San Salvador, El Salvador"
-                          className="w-full bg-cream-50 border border-cream-200 rounded-xl py-3 px-4 text-sm text-charcoal-900 focus:bg-white focus:ring-2 focus:ring-sage-500/20 focus:border-sage-500 outline-none transition"
-                          value={direccionCompleta}
-                          onChange={(e) => setDireccionCompleta(e.target.value)}
-                        />
-                      </div>
-                    </div>
-
                     {/* Modalidad Fija Online (Aviso estético) */}
                     <div className="border border-sage-200 bg-sage-50/20 rounded-xl p-3.5 flex items-center space-x-3 text-xs font-semibold text-sage-800">
                       <Video className="w-5 h-5 text-sage-600 flex-shrink-0" />
@@ -900,9 +943,9 @@ export default function BookingPage() {
 
                   <button
                     type="submit"
-                    disabled={enviando || !fechaSeleccionada || !slotSeleccionado || esFechaBloqueada}
+                    disabled={enviando || !fechaSeleccionada || !slotSeleccionado}
                     className={`w-full mt-6 text-white font-semibold py-3.5 px-6 rounded-xl shadow-lg transition duration-200 flex items-center justify-center space-x-2 ${
-                      enviando || !fechaSeleccionada || !slotSeleccionado || esFechaBloqueada
+                      enviando || !fechaSeleccionada || !slotSeleccionado
                         ? 'bg-cream-300 shadow-none cursor-not-allowed text-charcoal-400'
                         : 'bg-gradient-to-r from-sage-600 to-sage-700 hover:from-sage-700 hover:to-sage-800 shadow-sage-100 hover:scale-[1.01] active:scale-[0.99]'
                     }`}

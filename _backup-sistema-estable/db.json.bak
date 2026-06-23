@@ -1,0 +1,84 @@
+{
+  "pacientes": [
+    {
+      "nombreCompleto": "isaac",
+      "email": "jedu41@gmail.com",
+      "telefono": "70338589",
+      "fechaNacimiento": "1996-09-20",
+      "notasHistorial": "Paciente registrado desde el portal público de reserva. Motivo inicial: [Triage] Sesión para: Para mí | Proceso: Terapia Individual | Enfoque: Proceso Emocional. Detalle: ",
+      "id": "pac-1781045254684-ev8g",
+      "fechaRegistro": "2026-06-09T22:47:34.684Z"
+    }
+  ],
+  "citas": [
+    {
+      "pacienteId": "pac-1781045254684-ev8g",
+      "fecha": "2026-07-01",
+      "horaInicio": "19:00",
+      "horaFin": "20:00",
+      "estado": "cancelada",
+      "modalidad": "virtual",
+      "linkReunion": "https://meet.google.com/synapsa-1781045254684",
+      "notasSesion": "Motivo de consulta: [Triage] Sesión para: Para mí | Proceso: Terapia Individual | Enfoque: Proceso Emocional. Detalle: ",
+      "googleCalendarId": "",
+      "id": "cit-1781045254685-86kn"
+    }
+  ],
+  "disponibilidad": [
+    {
+      "id": "disp-1",
+      "diaSemana": 1,
+      "horaInicio": "19:00",
+      "horaFin": "22:00",
+      "bloqueado": false
+    },
+    {
+      "id": "disp-2",
+      "diaSemana": 2,
+      "horaInicio": "19:00",
+      "horaFin": "22:00",
+      "bloqueado": false
+    },
+    {
+      "id": "disp-3",
+      "diaSemana": 3,
+      "horaInicio": "19:00",
+      "horaFin": "22:00",
+      "bloqueado": false
+    },
+    {
+      "id": "disp-4",
+      "diaSemana": 4,
+      "horaInicio": "19:00",
+      "horaFin": "22:00",
+      "bloqueado": false
+    },
+    {
+      "id": "disp-5",
+      "diaSemana": 5,
+      "horaInicio": "19:00",
+      "horaFin": "21:00",
+      "bloqueado": true
+    },
+    {
+      "id": "disp-6",
+      "diaSemana": 6,
+      "horaInicio": "19:00",
+      "horaFin": "21:00",
+      "bloqueado": true
+    },
+    {
+      "id": "disp-0",
+      "diaSemana": 0,
+      "horaInicio": "19:00",
+      "horaFin": "21:00",
+      "bloqueado": true
+    }
+  ],
+  "diasNoLaborables": [
+    "2026-06-22",
+    "2026-12-24",
+    "2026-12-25",
+    "2026-12-31"
+  ]
+}
