@@ -49,6 +49,8 @@ function getRedis(): Redis {
   if (redisInstance) return redisInstance;
   
   const url = process.env.REDIS_URL;
+  console.log('URL de Redis:', url ? url.substring(0, 15) + '...' : 'NO DEFINIDA');
+  
   if (!url) {
     throw new Error('REDIS_URL environment variable is not defined.');
   }
@@ -64,17 +66,23 @@ function getRedis(): Redis {
     }
   };
 
+  let newInstance: Redis;
   if (process.env.NODE_ENV === 'production') {
-    redisInstance = new Redis(url, redisOptions);
+    newInstance = new Redis(url, redisOptions);
   } else {
     if (!(global as any).redis) {
       (global as any).redis = new Redis(url, redisOptions);
     }
-    redisInstance = (global as any).redis;
+    newInstance = (global as any).redis;
   }
-  return redisInstance!;
-}
 
+  // Attach error and connection listeners aggressively
+  newInstance.on('error', (err) => console.error('Fallo Redis:', err));
+  newInstance.on('connect', () => console.log('Conectado a Redis con éxito'));
+  
+  redisInstance = newInstance;
+  return redisInstance;
+}
 
 // Lectura asíncrona de Redis para evitar problemas de concurrencia
 export async function readDB(): Promise<Database> {
@@ -112,8 +120,8 @@ export async function readDB(): Promise<Database> {
       fechasBloqueadas: fechasBloqueadasStr ? JSON.parse(fechasBloqueadasStr) : initialDb.fechasBloqueadas
     };
   } catch (error) {
-    console.error('Error leyendo la base de datos Redis:', error);
-    return { pacientes: [], citas: [], disponibilidad: [], diasNoLaborables: [], fechasBloqueadas: [] };
+    console.error("ERROR CRÍTICO EN REDIS (readDB):", error);
+    throw error;
   }
 }
 
@@ -129,211 +137,289 @@ export async function writeDB(db: Database): Promise<void> {
       r.set('synapsa:fechasBloqueadas', JSON.stringify(db.fechasBloqueadas))
     ]);
   } catch (error) {
-    console.error('Error escribiendo en la base de datos Redis:', error);
+    console.error("ERROR CRÍTICO EN REDIS (writeDB):", error);
+    throw error;
   }
 }
 
 // --- PACIENTES CRUD ---
 
 export async function getPacientes(): Promise<Paciente[]> {
-  const db = await readDB();
-  return db.pacientes;
+  try {
+    const db = await readDB();
+    return db.pacientes;
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (getPacientes):", error);
+    return [];
+  }
 }
 
 export async function getPacienteById(id: string): Promise<Paciente | undefined> {
-  const db = await readDB();
-  return db.pacientes.find(p => p.id === id);
+  try {
+    const db = await readDB();
+    return db.pacientes.find(p => p.id === id);
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (getPacienteById):", error);
+    return undefined;
+  }
 }
 
 export async function createPaciente(data: Omit<Paciente, 'id' | 'fechaRegistro'>): Promise<Paciente> {
-  const db = await readDB();
-  
-  const normalizarTelefono = (t: string) => {
-    if (!t) return '';
-    const clean = t.replace(/[^\d]/g, '');
-    if (clean.length === 8) {
-      return `503${clean}`;
+  try {
+    const db = await readDB();
+    
+    const normalizarTelefono = (t: string) => {
+      if (!t) return '';
+      const clean = t.replace(/[^\d]/g, '');
+      if (clean.length === 8) {
+        return `503${clean}`;
+      }
+      return clean;
+    };
+    
+    const telefonoBuscado = normalizarTelefono(data.telefono);
+    const existente = db.pacientes.find(p => 
+      (p.email && p.email.toLowerCase() === data.email.toLowerCase()) ||
+      (p.telefono && normalizarTelefono(p.telefono) === telefonoBuscado)
+    );
+    
+    if (existente) {
+      return existente;
     }
-    return clean;
-  };
-  
-  const telefonoBuscado = normalizarTelefono(data.telefono);
-  // Verificar si ya existe un paciente con el mismo email o teléfono
-  const existente = db.pacientes.find(p => 
-    (p.email && p.email.toLowerCase() === data.email.toLowerCase()) ||
-    (p.telefono && normalizarTelefono(p.telefono) === telefonoBuscado)
-  );
-  
-  if (existente) {
-    return existente; // Retorna el existente para no duplicar en flujo de reserva
-  }
 
-  const nuevoPaciente: Paciente = {
-    ...data,
-    id: `pac-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-    fechaRegistro: new Date().toISOString()
-  };
-  db.pacientes.push(nuevoPaciente);
-  await writeDB(db);
-  return nuevoPaciente;
+    const nuevoPaciente: Paciente = {
+      ...data,
+      id: `pac-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      fechaRegistro: new Date().toISOString()
+    };
+    db.pacientes.push(nuevoPaciente);
+    await writeDB(db);
+    return nuevoPaciente;
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (createPaciente):", error);
+    throw error;
+  }
 }
 
 export async function updatePaciente(id: string, data: Partial<Paciente>): Promise<Paciente> {
-  const db = await readDB();
-  const index = db.pacientes.findIndex(p => p.id === id);
-  if (index === -1) {
-    throw new Error(`Paciente con ID ${id} no encontrado`);
+  try {
+    const db = await readDB();
+    const index = db.pacientes.findIndex(p => p.id === id);
+    if (index === -1) {
+      throw new Error(`Paciente con ID ${id} no encontrado`);
+    }
+    const actualizado = { ...db.pacientes[index], ...data };
+    db.pacientes[index] = actualizado;
+    await writeDB(db);
+    return actualizado;
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (updatePaciente):", error);
+    throw error;
   }
-  const actualizado = { ...db.pacientes[index], ...data };
-  db.pacientes[index] = actualizado;
-  await writeDB(db);
-  return actualizado;
 }
 
 export async function deletePaciente(id: string): Promise<boolean> {
-  const db = await readDB();
-  const index = db.pacientes.findIndex(p => p.id === id);
-  if (index === -1) return false;
-  db.pacientes.splice(index, 1);
-  // También cancelamos o eliminamos sus citas relacionadas
-  db.citas = db.citas.filter(c => c.pacienteId !== id);
-  await writeDB(db);
-  return true;
+  try {
+    const db = await readDB();
+    const index = db.pacientes.findIndex(p => p.id === id);
+    if (index === -1) return false;
+    db.pacientes.splice(index, 1);
+    db.citas = db.citas.filter(c => c.pacienteId !== id);
+    await writeDB(db);
+    return true;
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (deletePaciente):", error);
+    return false;
+  }
 }
 
 // --- CITAS CRUD ---
 
 export async function getCitas(): Promise<(Cita & { paciente?: Paciente })[]> {
-  const db = await readDB();
-  return db.citas.map(cita => ({
-    ...cita,
-    paciente: db.pacientes.find(p => p.id === cita.pacienteId)
-  }));
+  try {
+    const db = await readDB();
+    return db.citas.map(cita => ({
+      ...cita,
+      paciente: db.pacientes.find(p => p.id === cita.pacienteId)
+    }));
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (getCitas):", error);
+    return [];
+  }
 }
 
 export async function getCitaById(id: string): Promise<Cita | undefined> {
-  const db = await readDB();
-  return db.citas.find(c => c.id === id);
+  try {
+    const db = await readDB();
+    return db.citas.find(c => c.id === id);
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (getCitaById):", error);
+    return undefined;
+  }
 }
 
 export async function createCita(data: Omit<Cita, 'id'>): Promise<Cita> {
-  const db = await readDB();
-  const nuevaCita: Cita = {
-    ...data,
-    id: `cit-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`
-  };
-  db.citas.push(nuevaCita);
-  await writeDB(db);
-  return nuevaCita;
+  try {
+    const db = await readDB();
+    const nuevaCita: Cita = {
+      ...data,
+      id: `cit-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`
+    };
+    db.citas.push(nuevaCita);
+    await writeDB(db);
+    return nuevaCita;
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (createCita):", error);
+    throw error;
+  }
 }
 
 export async function updateCita(id: string, data: Partial<Cita>): Promise<Cita> {
-  const db = await readDB();
-  const index = db.citas.findIndex(c => c.id === id);
-  if (index === -1) {
-    throw new Error(`Cita con ID ${id} no encontrada`);
+  try {
+    const db = await readDB();
+    const index = db.citas.findIndex(c => c.id === id);
+    if (index === -1) {
+      throw new Error(`Cita con ID ${id} no encontrada`);
+    }
+    const actualizada = { ...db.citas[index], ...data };
+    db.citas[index] = actualizada;
+    await writeDB(db);
+    return actualizada;
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (updateCita):", error);
+    throw error;
   }
-  const actualizada = { ...db.citas[index], ...data };
-  db.citas[index] = actualizada;
-  await writeDB(db);
-  return actualizada;
 }
 
 export async function deleteCita(id: string): Promise<boolean> {
-  const db = await readDB();
-  const index = db.citas.findIndex(c => c.id === id);
-  if (index === -1) return false;
-  db.citas.splice(index, 1);
-  await writeDB(db);
-  return true;
+  try {
+    const db = await readDB();
+    const index = db.citas.findIndex(c => c.id === id);
+    if (index === -1) return false;
+    db.citas.splice(index, 1);
+    await writeDB(db);
+    return true;
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (deleteCita):", error);
+    return false;
+  }
 }
 
 // --- DISPONIBILIDAD ---
 
 export async function getDisponibilidad(): Promise<Disponibilidad[]> {
-  const db = await readDB();
-  return db.disponibilidad;
+  try {
+    const db = await readDB();
+    return db.disponibilidad;
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (getDisponibilidad):", error);
+    return [];
+  }
 }
 
 export async function updateDisponibilidad(id: string, data: Partial<Disponibilidad>): Promise<Disponibilidad> {
-  const db = await readDB();
-  const index = db.disponibilidad.findIndex(d => d.id === id);
-  if (index === -1) {
-    throw new Error(`Disponibilidad con ID ${id} no encontrada`);
+  try {
+    const db = await readDB();
+    const index = db.disponibilidad.findIndex(d => d.id === id);
+    if (index === -1) {
+      throw new Error(`Disponibilidad con ID ${id} no encontrada`);
+    }
+    const actualizada = { ...db.disponibilidad[index], ...data };
+    db.disponibilidad[index] = actualizada;
+    await writeDB(db);
+    return actualizada;
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (updateDisponibilidad):", error);
+    throw error;
   }
-  const actualizada = { ...db.disponibilidad[index], ...data };
-  db.disponibilidad[index] = actualizada;
-  await writeDB(db);
-  return actualizada;
 }
 
 // --- DIAS NO LABORABLES ---
 
 export async function getDiasNoLaborables(): Promise<string[]> {
-  const db = await readDB();
-  return db.diasNoLaborables || db.fechasBloqueadas || [];
+  try {
+    const db = await readDB();
+    return db.diasNoLaborables || db.fechasBloqueadas || [];
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (getDiasNoLaborables):", error);
+    return [];
+  }
 }
 
 export async function addDiaNoLaborable(fecha: string): Promise<void> {
-  const db = await readDB();
-  if (!db.diasNoLaborables) {
-    db.diasNoLaborables = [];
-  }
-  if (!db.fechasBloqueadas) {
-    db.fechasBloqueadas = [];
-  }
-  // Validar formato YYYY-MM-DD
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!regex.test(fecha)) {
-    throw new Error('Formato de fecha inválido. Utilice YYYY-MM-DD.');
-  }
-  let changed = false;
-  if (!db.diasNoLaborables.includes(fecha)) {
-    db.diasNoLaborables.push(fecha);
-    db.diasNoLaborables.sort(); // Mantener ordenado
-    changed = true;
-  }
-  if (!db.fechasBloqueadas.includes(fecha)) {
-    db.fechasBloqueadas.push(fecha);
-    db.fechasBloqueadas.sort(); // Mantener ordenado
-    changed = true;
-  }
-  if (changed) {
-    await writeDB(db);
+  try {
+    const db = await readDB();
+    if (!db.diasNoLaborables) {
+      db.diasNoLaborables = [];
+    }
+    if (!db.fechasBloqueadas) {
+      db.fechasBloqueadas = [];
+    }
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(fecha)) {
+      throw new Error('Formato de fecha inválido. Utilice YYYY-MM-DD.');
+    }
+    let changed = false;
+    if (!db.diasNoLaborables.includes(fecha)) {
+      db.diasNoLaborables.push(fecha);
+      db.diasNoLaborables.sort();
+      changed = true;
+    }
+    if (!db.fechasBloqueadas.includes(fecha)) {
+      db.fechasBloqueadas.push(fecha);
+      db.fechasBloqueadas.sort();
+      changed = true;
+    }
+    if (changed) {
+      await writeDB(db);
+    }
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (addDiaNoLaborable):", error);
+    throw error;
   }
 }
 
 export async function removeDiaNoLaborable(fecha: string): Promise<void> {
-  const db = await readDB();
-  let changed = false;
-  if (db.diasNoLaborables) {
-    const index = db.diasNoLaborables.indexOf(fecha);
-    if (index !== -1) {
-      db.diasNoLaborables.splice(index, 1);
-      changed = true;
+  try {
+    const db = await readDB();
+    let changed = false;
+    if (db.diasNoLaborables) {
+      const index = db.diasNoLaborables.indexOf(fecha);
+      if (index !== -1) {
+        db.diasNoLaborables.splice(index, 1);
+        changed = true;
+      }
     }
-  }
-  if (db.fechasBloqueadas) {
-    const index = db.fechasBloqueadas.indexOf(fecha);
-    if (index !== -1) {
-      db.fechasBloqueadas.splice(index, 1);
-      changed = true;
+    if (db.fechasBloqueadas) {
+      const index = db.fechasBloqueadas.indexOf(fecha);
+      if (index !== -1) {
+        db.fechasBloqueadas.splice(index, 1);
+        changed = true;
+      }
     }
-  }
-  if (changed) {
-    await writeDB(db);
+    if (changed) {
+      await writeDB(db);
+    }
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (removeDiaNoLaborable):", error);
+    throw error;
   }
 }
 
 export async function setDiasNoLaborables(fechas: string[]): Promise<void> {
-  const db = await readDB();
-  const regex = /^\d{4}-\d{2}-\d{2}$/;
-  const fechasValidas = fechas
-    .map(f => f.trim())
-    .filter(f => regex.test(f));
-  
-  db.diasNoLaborables = [...new Set(fechasValidas)].sort();
-  db.fechasBloqueadas = [...db.diasNoLaborables];
-  
-  await writeDB(db);
+  try {
+    const db = await readDB();
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    const fechasValidas = fechas
+      .map(f => f.trim())
+      .filter(f => regex.test(f));
+    
+    db.diasNoLaborables = [...new Set(fechasValidas)].sort();
+    db.fechasBloqueadas = [...db.diasNoLaborables];
+    
+    await writeDB(db);
+  } catch (error) {
+    console.error("ERROR CRÍTICO EN REDIS (setDiasNoLaborables):", error);
+    throw error;
+  }
 }
