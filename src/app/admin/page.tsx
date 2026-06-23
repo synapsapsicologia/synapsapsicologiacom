@@ -33,6 +33,7 @@ import {
   Coins
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface DashboardStats {
   citasHoy: number;
@@ -94,6 +95,8 @@ const obtenerNombreEstado = (estado: string) => {
 };
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  const [eliminando, setElimando] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     citasHoy: 0,
     pacientesTotales: 0,
@@ -153,15 +156,22 @@ export default function AdminDashboard() {
 
   const confirmarEliminarCita = async (notificar: boolean) => {
     if (!citaIdAEliminar) return;
-    
-    const res = await eliminarCitaAccion(citaIdAEliminar, notificar);
-    if (res.success) {
-      alert('Cita eliminada con éxito.');
-      setModalEliminarAbierto(false);
-      setCitaIdAEliminar(null);
-      await cargarDatos();
-    } else {
-      alert(res.error || 'Error al eliminar la cita.');
+    setElimando(true);
+    try {
+      const res = await eliminarCitaAccion(citaIdAEliminar, notificar);
+      if (res.success) {
+        router.refresh();
+        alert('Cita eliminada con éxito.');
+        setModalEliminarAbierto(false);
+        setCitaIdAEliminar(null);
+        await cargarDatos();
+      } else {
+        alert(res.error || 'Error al eliminar la cita.');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error al eliminar la cita.');
+    } finally {
+      setElimando(false);
     }
   };
 
@@ -751,19 +761,22 @@ export default function AdminDashboard() {
             <div className="flex flex-col gap-3 pt-2">
               <button
                 onClick={() => confirmarEliminarCita(true)}
-                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl text-xs transition shadow-md shadow-red-100 hover:scale-[1.01] active:scale-[0.99]"
+                disabled={eliminando}
+                className="w-full bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold py-3 px-4 rounded-xl text-xs transition shadow-md shadow-red-100 hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
               >
-                Opción A: Eliminar y Notificar al Paciente por Correo
+                {eliminando ? 'Eliminando...' : 'Opción A: Eliminar y Notificar al Paciente por Correo'}
               </button>
               <button
                 onClick={() => confirmarEliminarCita(false)}
-                className="w-full bg-stone-600 hover:bg-stone-700 text-white font-bold py-3 px-4 rounded-xl text-xs transition shadow-md hover:scale-[1.01] active:scale-[0.99]"
+                disabled={eliminando}
+                className="w-full bg-stone-600 hover:bg-stone-700 disabled:opacity-50 text-white font-bold py-3 px-4 rounded-xl text-xs transition shadow-md hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
               >
-                Opción B: Eliminar de forma silenciosa (Solo borrar de BD)
+                {eliminando ? 'Eliminando...' : 'Opción B: Eliminar de forma silenciosa (Solo borrar de BD)'}
               </button>
               <button
                 onClick={() => setModalEliminarAbierto(false)}
-                className="w-full bg-cream-150 hover:bg-cream-200 text-charcoal-850 font-bold py-2.5 px-4 rounded-xl text-xs border border-cream-350 transition hover:scale-[1.01] active:scale-[0.99]"
+                disabled={eliminando}
+                className="w-full bg-cream-150 hover:bg-cream-200 disabled:opacity-50 text-charcoal-850 font-bold py-2.5 px-4 rounded-xl text-xs border border-cream-350 transition hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
               >
                 Cancelar
               </button>

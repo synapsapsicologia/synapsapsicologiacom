@@ -361,10 +361,10 @@ export async function eliminarCitaAccion(citaId: string, notificarPaciente: bool
 
     // 2. Eliminar físicamente del db.json
     const eliminado = db.deleteCita(citaId);
-    revalidatePath("/admin");
-    revalidatePath("/admin/disponibilidad");
-    revalidatePath("/admin/pacientes");
-    revalidatePath("/");
+    revalidatePath("/admin", "layout");
+    revalidatePath("/admin/disponibilidad", "layout");
+    revalidatePath("/admin/pacientes", "layout");
+    revalidatePath("/", "layout");
     return { success: eliminado };
   } catch (error: any) {
     console.error('Error al eliminar cita:', error);
@@ -378,9 +378,9 @@ export async function eliminarCitaAccion(citaId: string, notificarPaciente: bool
 export async function completarCitaAccion(citaId: string) {
   try {
     const actualizado = db.updateCita(citaId, { estado: 'completada' });
-    revalidatePath("/admin");
-    revalidatePath("/admin/pacientes");
-    revalidatePath("/");
+    revalidatePath("/admin", "layout");
+    revalidatePath("/admin/pacientes", "layout");
+    revalidatePath("/", "layout");
     return { success: true, cita: actualizado };
   } catch (error: any) {
     console.error('Error al completar cita:', error);
@@ -391,9 +391,9 @@ export async function completarCitaAccion(citaId: string) {
 export async function actualizarEstadoCitaAccion(citaId: string, nuevoEstado: string) {
   try {
     const actualizado = db.updateCita(citaId, { estado: nuevoEstado as any });
-    revalidatePath("/admin");
-    revalidatePath("/admin/pacientes");
-    revalidatePath("/");
+    revalidatePath("/admin", "layout");
+    revalidatePath("/admin/pacientes", "layout");
+    revalidatePath("/", "layout");
     return { success: true, cita: actualizado };
   } catch (error: any) {
     console.error('Error al actualizar estado de cita:', error);
@@ -404,9 +404,9 @@ export async function actualizarEstadoCitaAccion(citaId: string, nuevoEstado: st
 export async function actualizarPagoCitaAccion(citaId: string, pagado: boolean) {
   try {
     const actualizado = db.updateCita(citaId, { pagado });
-    revalidatePath("/admin");
-    revalidatePath("/admin/pacientes");
-    revalidatePath("/");
+    revalidatePath("/admin", "layout");
+    revalidatePath("/admin/pacientes", "layout");
+    revalidatePath("/", "layout");
     return { success: true, cita: actualizado };
   } catch (error: any) {
     console.error('Error al actualizar pago de cita:', error);
@@ -474,9 +474,9 @@ export async function getCalendarioConfigAccion() {
 export async function actualizarDiaBloqueoAccion(id: string, bloqueado: boolean) {
   try {
     const actualizado = db.updateDisponibilidad(id, { bloqueado });
-    revalidatePath("/admin");
-    revalidatePath("/admin/disponibilidad");
-    revalidatePath("/");
+    revalidatePath("/admin", "layout");
+    revalidatePath("/admin/disponibilidad", "layout");
+    revalidatePath("/", "layout");
     return { success: true, disponibilidad: actualizado };
   } catch (error: any) {
     console.error('Error al actualizar bloqueo de día:', error);
@@ -553,9 +553,9 @@ export async function agregarDiaNoLaborableAccion(fecha: any) {
       throw new Error('Formato de fecha inválido. Utilice YYYY-MM-DD.');
     }
     db.addDiaNoLaborable(fechaNormalizada);
-    revalidatePath("/admin");
-    revalidatePath("/admin/disponibilidad");
-    revalidatePath("/");
+    revalidatePath("/admin", "layout");
+    revalidatePath("/admin/disponibilidad", "layout");
+    revalidatePath("/", "layout");
     const dias = db.getDiasNoLaborables();
     return { success: true, diasNoLaborables: dias, fechasBloqueadas: dias };
   } catch (error: any) {
@@ -571,9 +571,9 @@ export async function eliminarDiaNoLaborableAccion(fecha: any) {
   try {
     const fechaNormalizada = normalizarFecha(fecha);
     db.removeDiaNoLaborable(fechaNormalizada);
-    revalidatePath("/admin");
-    revalidatePath("/admin/disponibilidad");
-    revalidatePath("/");
+    revalidatePath("/admin", "layout");
+    revalidatePath("/admin/disponibilidad", "layout");
+    revalidatePath("/", "layout");
     const dias = db.getDiasNoLaborables();
     return { success: true, diasNoLaborables: dias, fechasBloqueadas: dias };
   } catch (error: any) {
@@ -596,9 +596,9 @@ export async function actualizarDiasNoLaborablesLoteAccion(fechas: any) {
     const fechasUnicas = [...new Set(fechasNormalizadas)].sort();
 
     db.setDiasNoLaborables(fechasUnicas);
-    revalidatePath("/admin");
-    revalidatePath("/admin/disponibilidad");
-    revalidatePath("/");
+    revalidatePath("/admin", "layout");
+    revalidatePath("/admin/disponibilidad", "layout");
+    revalidatePath("/", "layout");
     
     const dias = db.getDiasNoLaborables();
     return { success: true, diasNoLaborables: dias, fechasBloqueadas: dias };

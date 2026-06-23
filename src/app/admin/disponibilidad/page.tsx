@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   getCalendarioConfigAccion, 
   actualizarDiaBloqueoAccion, 
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react';
 
 export default function DisponibilidadPage() {
+  const router = useRouter();
   const [disponibilidad, setDisponibilidad] = useState<any[]>([]);
   const [diasNoLaborables, setDiasNoLaborables] = useState<string[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -159,6 +161,7 @@ export default function DisponibilidadPage() {
 
       const res = await actualizarDiasNoLaborablesLoteAccion(fechasFormateadas);
       if (res.success) {
+        router.refresh();
         setDiasNoLaborables(res.diasNoLaborables || []);
         setFechasSeleccionadas(res.diasNoLaborables || []);
         alert('Fechas bloqueadas actualizadas correctamente en lote');
@@ -177,8 +180,9 @@ export default function DisponibilidadPage() {
     if (confirm(`¿Estás seguro de que deseas habilitar nuevamente las reservas para el día ${fecha}?`)) {
       // Garantizar formato string ISO plano
       const fechaNormalizada = typeof fecha === 'string' && fecha.includes('T') ? fecha.split('T')[0] : String(fecha);
-      const res = await eliminarDiaNoLaborableAccion(fechaNormalizada);
+       const res = await eliminarDiaNoLaborableAccion(fechaNormalizada);
       if (res.success) {
+        router.refresh();
         setDiasNoLaborables(res.diasNoLaborables || []);
         setFechasSeleccionadas(res.diasNoLaborables || []);
       } else {
