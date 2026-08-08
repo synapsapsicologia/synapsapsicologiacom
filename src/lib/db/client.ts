@@ -471,5 +471,4 @@ export async function setDiasNoLaborables(fechas: string[]): Promise<void> {
     throw new Error("No se actualizaron las fechas porque la base de datos está inaccesible.");
   }
 }
-/ /   F o r z a r   r e d e p l o y  
- 
+
