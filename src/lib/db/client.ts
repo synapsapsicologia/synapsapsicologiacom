@@ -45,16 +45,15 @@ export interface Database {
   fechasBloqueadas: string[];
 }
 
-// --- CONFIGURACIÓN DE CONEXIÓN CON ESCUDO DE FALLBACK ---
+// --- CONFIGURACIÓN DE CONEXIÓN ---
 
 let redisUrl = (process.env.REDIS_URL || '').trim();
 let isRedisOffline = false;
 
 if (!redisUrl) {
   redisUrl = 'redis://127.0.0.1:6379';
-  isRedisOffline = true; // Forzar fallback inmediato si no hay variable de entorno
+  isRedisOffline = true; // Fallback inmediato si no hay variable
 } else {
-  // Si no empieza con redis:// ni rediss://, le agregamos rediss://
   if (!redisUrl.startsWith('redis://') && !redisUrl.startsWith('rediss://')) {
     redisUrl = 'rediss://' + redisUrl.replace(/^\/+/, '');
   }
@@ -62,9 +61,14 @@ if (!redisUrl) {
 
 const isSecure = redisUrl.startsWith('rediss://');
 const redisOptions: any = {
-  connectTimeout: 3000, // Tiempo de espera corto para fallar rápido
-  maxRetriesPerRequest: 1, // Reducir reintentos para no bloquear las lambdas
-  keepAlive: 100
+  // Ajustes robustos para Serverless (Vercel)
+  connectTimeout: 5000, 
+  maxRetriesPerRequest: 3, // Permite que ioredis se reconecte si el socket se durmió
+  keepAlive: 10000,
+  retryStrategy(times: number) {
+    if (times > 3) return null; // Detener reintentos después de 3 intentos
+    return Math.min(times * 200, 1000);
+  }
 };
 
 if (isSecure) {
@@ -74,7 +78,7 @@ if (isSecure) {
 const redis = new Redis(redisUrl, redisOptions);
 
 redis.on('error', (err) => {
-  console.error('Redis Connection Error (falling back to db.json):', err.message);
+  console.error('Redis Connection Error:', err.message);
   isRedisOffline = true;
 });
 
@@ -165,28 +169,6 @@ export async function createPaciente(data: Omit<Paciente, 'id' | 'fechaRegistro'
     return clean;
   };
 
-  if (isRedisOffline) {
-    const local = readLocalDb();
-    const telefonoBuscado = normalizarTelefono(data.telefono);
-    const existente = local.pacientes.find(p => 
-      (p.email && p.email.toLowerCase() === data.email.toLowerCase()) ||
-      (p.telefono && normalizarTelefono(p.telefono) === telefonoBuscado)
-    );
-    
-    if (existente) return existente;
-
-    const nuevoId = `pac-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
-    const nuevoPaciente: Paciente = {
-      ...data,
-      id: nuevoId,
-      fechaRegistro: new Date().toISOString()
-    };
-
-    local.pacientes.push(nuevoPaciente);
-    writeLocalDb(local);
-    return nuevoPaciente;
-  }
-
   try {
     const pacientes = await getPacientes();
     const telefonoBuscado = normalizarTelefono(data.telefono);
@@ -213,25 +195,12 @@ export async function createPaciente(data: Omit<Paciente, 'id' | 'fechaRegistro'
 
     return nuevoPaciente;
   } catch (error) {
-    console.error("ERROR CRÍTICO EN REDIS (createPaciente), cayendo a db.json:", error);
-    isRedisOffline = true;
-    return createPaciente(data);
+    console.error("ERROR CRÍTICO EN REDIS (createPaciente):", error);
+    throw new Error("No se pudo guardar el paciente porque la base de datos está inaccesible.");
   }
 }
 
 export async function updatePaciente(id: string, data: Partial<Paciente>): Promise<Paciente> {
-  if (isRedisOffline) {
-    const local = readLocalDb();
-    const index = local.pacientes.findIndex(p => p.id === id);
-    if (index === -1) {
-      throw new Error(`Paciente con ID ${id} no encontrado`);
-    }
-    const actualizado = { ...local.pacientes[index], ...data };
-    local.pacientes[index] = actualizado;
-    writeLocalDb(local);
-    return actualizado;
-  }
-
   try {
     const existente = await getPacienteById(id);
     if (!existente) {
@@ -242,24 +211,12 @@ export async function updatePaciente(id: string, data: Partial<Paciente>): Promi
     await redis.set(`synapsa:paciente:${id}`, JSON.stringify(actualizado));
     return actualizado;
   } catch (error) {
-    console.error(`ERROR CRÍTICO EN REDIS (updatePaciente ${id}), cayendo a db.json:`, error);
-    isRedisOffline = true;
-    return updatePaciente(id, data);
+    console.error(`ERROR CRÍTICO EN REDIS (updatePaciente ${id}):`, error);
+    throw new Error("No se pudo actualizar el paciente porque la base de datos está inaccesible.");
   }
 }
 
 export async function deletePaciente(id: string): Promise<boolean> {
-  if (isRedisOffline) {
-    const local = readLocalDb();
-    const existente = local.pacientes.find(p => p.id === id);
-    if (!existente) return false;
-
-    local.pacientes = local.pacientes.filter(p => p.id !== id);
-    local.citas = local.citas.filter(c => c.pacienteId !== id);
-    writeLocalDb(local);
-    return true;
-  }
-
   try {
     const existente = await getPacienteById(id);
     if (!existente) return false;
@@ -281,9 +238,8 @@ export async function deletePaciente(id: string): Promise<boolean> {
     await pipeline.exec();
     return true;
   } catch (error) {
-    console.error(`ERROR CRÍTICO EN REDIS (deletePaciente ${id}), cayendo a db.json:`, error);
-    isRedisOffline = true;
-    return deletePaciente(id);
+    console.error(`ERROR CRÍTICO EN REDIS (deletePaciente ${id}):`, error);
+    throw new Error("No se pudo eliminar el paciente porque la base de datos está inaccesible.");
   }
 }
 
@@ -341,18 +297,6 @@ export async function getCitaById(id: string): Promise<Cita | undefined> {
 }
 
 export async function createCita(data: Omit<Cita, 'id'>): Promise<Cita> {
-  if (isRedisOffline) {
-    const local = readLocalDb();
-    const nuevoId = `cit-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
-    const nuevaCita: Cita = {
-      ...data,
-      id: nuevoId
-    };
-    local.citas.push(nuevaCita);
-    writeLocalDb(local);
-    return nuevaCita;
-  }
-
   try {
     const nuevoId = `cit-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
     const nuevaCita: Cita = {
@@ -368,25 +312,12 @@ export async function createCita(data: Omit<Cita, 'id'>): Promise<Cita> {
 
     return nuevaCita;
   } catch (error) {
-    console.error("ERROR CRÍTICO EN REDIS (createCita), cayendo a db.json:", error);
-    isRedisOffline = true;
-    return createCita(data);
+    console.error("ERROR CRÍTICO EN REDIS (createCita):", error);
+    throw new Error("No se pudo guardar la cita porque la base de datos está inaccesible.");
   }
 }
 
 export async function updateCita(id: string, data: Partial<Cita>): Promise<Cita> {
-  if (isRedisOffline) {
-    const local = readLocalDb();
-    const index = local.citas.findIndex(c => c.id === id);
-    if (index === -1) {
-      throw new Error(`Cita con ID ${id} no encontrada`);
-    }
-    const actualizada = { ...local.citas[index], ...data };
-    local.citas[index] = actualizada;
-    writeLocalDb(local);
-    return actualizada;
-  }
-
   try {
     const existente = await getCitaById(id);
     if (!existente) {
@@ -407,23 +338,12 @@ export async function updateCita(id: string, data: Partial<Cita>): Promise<Cita>
     
     return actualizada;
   } catch (error) {
-    console.error(`ERROR CRÍTICO EN REDIS (updateCita ${id}), cayendo a db.json:`, error);
-    isRedisOffline = true;
-    return updateCita(id, data);
+    console.error(`ERROR CRÍTICO EN REDIS (updateCita ${id}):`, error);
+    throw new Error("No se pudo actualizar la cita porque la base de datos está inaccesible.");
   }
 }
 
 export async function deleteCita(id: string): Promise<boolean> {
-  if (isRedisOffline) {
-    const local = readLocalDb();
-    const existente = local.citas.find(c => c.id === id);
-    if (!existente) return false;
-
-    local.citas = local.citas.filter(c => c.id !== id);
-    writeLocalDb(local);
-    return true;
-  }
-
   try {
     const existente = await getCitaById(id);
     if (!existente) return false;
@@ -436,9 +356,8 @@ export async function deleteCita(id: string): Promise<boolean> {
 
     return true;
   } catch (error) {
-    console.error(`ERROR CRÍTICO EN REDIS (deleteCita ${id}), cayendo a db.json:`, error);
-    isRedisOffline = true;
-    return deleteCita(id);
+    console.error(`ERROR CRÍTICO EN REDIS (deleteCita ${id}):`, error);
+    throw new Error("No se pudo eliminar la cita porque la base de datos está inaccesible.");
   }
 }
 
@@ -472,18 +391,6 @@ export async function getDisponibilidad(): Promise<Disponibilidad[]> {
 }
 
 export async function updateDisponibilidad(id: string, data: Partial<Disponibilidad>): Promise<Disponibilidad> {
-  if (isRedisOffline) {
-    const local = readLocalDb();
-    const index = local.disponibilidad.findIndex(d => d.id === id);
-    if (index === -1) {
-      throw new Error(`Disponibilidad con ID ${id} no encontrada`);
-    }
-    const actualizada = { ...local.disponibilidad[index], ...data };
-    local.disponibilidad[index] = actualizada;
-    writeLocalDb(local);
-    return actualizada;
-  }
-
   try {
     const lista = await getDisponibilidad();
     const index = lista.findIndex(d => d.id === id);
@@ -497,9 +404,8 @@ export async function updateDisponibilidad(id: string, data: Partial<Disponibili
     await redis.set('synapsa:disponibilidad', JSON.stringify(lista));
     return actualizada;
   } catch (error) {
-    console.error(`ERROR CRÍTICO EN REDIS (updateDisponibilidad ${id}), cayendo a db.json:`, error);
-    isRedisOffline = true;
-    return updateDisponibilidad(id, data);
+    console.error(`ERROR CRÍTICO EN REDIS (updateDisponibilidad ${id}):`, error);
+    throw new Error("No se pudo actualizar la disponibilidad porque la base de datos está inaccesible.");
   }
 }
 
@@ -529,50 +435,26 @@ export async function addDiaNoLaborable(fecha: string): Promise<void> {
     throw new Error('Formato de fecha inválido. Utilice YYYY-MM-DD.');
   }
 
-  if (isRedisOffline) {
-    const local = readLocalDb();
-    if (!local.diasNoLaborables) local.diasNoLaborables = [];
-    if (!local.fechasBloqueadas) local.fechasBloqueadas = [];
-    if (!local.diasNoLaborables.includes(fecha)) local.diasNoLaborables.push(fecha);
-    if (!local.fechasBloqueadas.includes(fecha)) local.fechasBloqueadas.push(fecha);
-    writeLocalDb(local);
-    return;
-  }
-
   try {
     await redis.multi()
       .sadd('synapsa:diasNoLaborables', fecha)
       .sadd('synapsa:fechasBloqueadas', fecha)
       .exec();
   } catch (error) {
-    console.error(`ERROR CRÍTICO EN REDIS (addDiaNoLaborable ${fecha}), cayendo a db.json:`, error);
-    isRedisOffline = true;
-    return addDiaNoLaborable(fecha);
+    console.error(`ERROR CRÍTICO EN REDIS (addDiaNoLaborable ${fecha}):`, error);
+    throw new Error("No se pudo bloquear la fecha porque la base de datos está inaccesible.");
   }
 }
 
 export async function removeDiaNoLaborable(fecha: string): Promise<void> {
-  if (isRedisOffline) {
-    const local = readLocalDb();
-    if (local.diasNoLaborables) {
-      local.diasNoLaborables = local.diasNoLaborables.filter(f => f !== fecha);
-    }
-    if (local.fechasBloqueadas) {
-      local.fechasBloqueadas = local.fechasBloqueadas.filter(f => f !== fecha);
-    }
-    writeLocalDb(local);
-    return;
-  }
-
   try {
     await redis.multi()
       .srem('synapsa:diasNoLaborables', fecha)
       .srem('synapsa:fechasBloqueadas', fecha)
       .exec();
   } catch (error) {
-    console.error(`ERROR CRÍTICO EN REDIS (removeDiaNoLaborable ${fecha}), cayendo a db.json:`, error);
-    isRedisOffline = true;
-    return removeDiaNoLaborable(fecha);
+    console.error(`ERROR CRÍTICO EN REDIS (removeDiaNoLaborable ${fecha}):`, error);
+    throw new Error("No se pudo desbloquear la fecha porque la base de datos está inaccesible.");
   }
 }
 
@@ -583,14 +465,6 @@ export async function setDiasNoLaborables(fechas: string[]): Promise<void> {
     .filter(f => regex.test(f));
 
   const fechasUnicas = [...new Set(fechasValidas)].sort();
-
-  if (isRedisOffline) {
-    const local = readLocalDb();
-    local.diasNoLaborables = fechasUnicas;
-    local.fechasBloqueadas = fechasUnicas;
-    writeLocalDb(local);
-    return;
-  }
 
   try {
     await redis.del('synapsa:diasNoLaborables');
@@ -603,8 +477,7 @@ export async function setDiasNoLaborables(fechas: string[]): Promise<void> {
         .exec();
     }
   } catch (error) {
-    console.error("ERROR CRÍTICO EN REDIS (setDiasNoLaborables), cayendo a db.json:", error);
-    isRedisOffline = true;
-    return setDiasNoLaborables(fechas);
+    console.error("ERROR CRÍTICO EN REDIS (setDiasNoLaborables):", error);
+    throw new Error("No se actualizaron las fechas porque la base de datos está inaccesible.");
   }
 }
