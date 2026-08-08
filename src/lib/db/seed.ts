@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import Redis from 'ioredis';
+import { Redis } from '@upstash/redis';
 
 // Helper to load env variables from .env.local or .env
 function loadEnv() {
@@ -26,29 +26,16 @@ function loadEnv() {
 async function main() {
   loadEnv();
   
-  const redisUrl = process.env.KV_URL || process.env.REDIS_URL;
-  if (!redisUrl) {
-    console.error('❌ Error: KV_URL or REDIS_URL not found in environment variables or .env.local/.env files.');
+  const restUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const restToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!restUrl || !restToken) {
+    console.error('❌ Error: UPSTASH_REDIS_REST_URL or UPSTASH_REDIS_REST_TOKEN not found in environment variables or .env.local/.env files.');
     process.exit(1);
   }
   
-  // Saneador de URL robusto
-  let urlSaneada = redisUrl.trim();
-  if (!urlSaneada.startsWith('redis://') && !urlSaneada.startsWith('rediss://')) {
-    urlSaneada = urlSaneada.replace(/^\/+/, '');
-    urlSaneada = `rediss://${urlSaneada}`;
-  }
-  
-  const maskedUrl = urlSaneada.replace(/:[^:@]+@/, ':****@');
-  console.log(`🔌 Connecting to Redis using URL: ${maskedUrl}`);
-  
-  const redis = new Redis(urlSaneada, {
-    tls: {
-      rejectUnauthorized: false
-    },
-    maxRetriesPerRequest: 3,
-    connectTimeout: 10000,
-  });
+  console.log(`🔌 Connecting to Upstash Redis REST API...`);
+  const redis = new Redis({ url: restUrl, token: restToken });
   
   const dbPath = path.resolve(process.cwd(), 'src/lib/db/db.json');
   if (!fs.existsSync(dbPath)) {
@@ -84,7 +71,7 @@ async function main() {
   );
   
   console.log('\n👥 --- Migrating Patients (Granular) ---');
-  const pipeline = redis.multi();
+  const pipeline = redis.pipeline();
   for (const paciente of pacientes) {
     console.log(`   [Patient] ID: ${paciente.id} | Name: ${paciente.nombreCompleto}`);
     pipeline.set(`synapsa:paciente:${paciente.id}`, JSON.stringify(paciente));
@@ -102,10 +89,10 @@ async function main() {
   console.log('\n⚙️ --- Migrating Availability & Date Blocks ---');
   pipeline.set('synapsa:disponibilidad', JSON.stringify(disponibilidad));
   if (diasNoLaborables.length > 0) {
-    pipeline.sadd('synapsa:diasNoLaborables', ...diasNoLaborables);
+    for (const d of diasNoLaborables) pipeline.sadd('synapsa:diasNoLaborables', d);
   }
   if (fechasBloqueadas.length > 0) {
-    pipeline.sadd('synapsa:fechasBloqueadas', ...fechasBloqueadas);
+    for (const f of fechasBloqueadas) pipeline.sadd('synapsa:fechasBloqueadas', f);
   }
   
   console.log('\n💾 Executing pipeline write...');
@@ -115,7 +102,7 @@ async function main() {
   const [pCount, cCount, dCount, nlCount, fbCount] = await Promise.all([
     redis.smembers('synapsa:pacientes:ids').then(res => res.length),
     redis.smembers('synapsa:citas:ids').then(res => res.length),
-    redis.get('synapsa:disponibilidad').then(res => JSON.parse(res || '[]').length),
+    redis.get<any[]>('synapsa:disponibilidad').then(res => (res || []).length),
     redis.smembers('synapsa:diasNoLaborables').then(res => res.length),
     redis.smembers('synapsa:fechasBloqueadas').then(res => res.length)
   ]);
@@ -133,7 +120,6 @@ async function main() {
     console.warn('\n⚠️ Warning: Mismatch between local data and Redis cloud data!');
   }
   
-  redis.disconnect();
 }
 
 main().catch(err => {
