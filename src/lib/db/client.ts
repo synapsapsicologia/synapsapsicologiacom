@@ -49,7 +49,10 @@ export interface Database {
 
 // Función para obtener una nueva conexión limpia por cada petición
 async function getRedisClient(): Promise<Redis> {
-  let redisUrl = (process.env.REDIS_URL || '').trim();
+  // Limpiar espacios y comillas accidentales que a veces se copian en el dashboard de Vercel
+  let redisUrl = (process.env.REDIS_URL || '')
+    .trim()
+    .replace(/^["']|["']$/g, '');
   
   if (!redisUrl) {
     // Modo local / Fallback
