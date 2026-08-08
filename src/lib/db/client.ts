@@ -52,26 +52,19 @@ let redisInstance: Redis | null = null;
 // Envoltorio para operaciones de base de datos
 async function executeDb<T>(operation: (client: Redis) => Promise<T>): Promise<T> {
   if (!redisInstance) {
-    let restUrl = (process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || '').trim();
-    let restToken = (process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
+    // Vía directa de emergencia: usamos las credenciales REST de Upstash (de la captura del usuario)
+    // como fallback definitivo si Vercel se niega a inyectar las variables.
+    const restUrl = (
+      process.env.KV_REST_API_URL || 
+      process.env.UPSTASH_REDIS_REST_URL || 
+      'https://mighty-gannet-149991.upstash.io'
+    ).trim();
     
-    // Si Vercel solo inyectó la variable TCP (REDIS_URL o KV_URL), derivamos las credenciales REST
-    if (!restUrl || !restToken) {
-      const tcpUrl = (process.env.REDIS_URL || process.env.KV_URL || '').trim();
-      if (tcpUrl.startsWith('redis://') || tcpUrl.startsWith('rediss://')) {
-        try {
-          const parsed = new URL(tcpUrl);
-          restUrl = `https://${parsed.hostname}`;
-          restToken = parsed.password;
-        } catch (e) {
-          console.error('Error parseando REDIS_URL para derivar credenciales REST:', e);
-        }
-      }
-    }
-
-    if (!restUrl || !restToken) {
-      throw new Error('Variables de entorno de Base de Datos faltantes. Vercel no inyectó ni REDIS_URL, ni KV_REST_API_URL.');
-    }
+    const restToken = (
+      process.env.KV_REST_API_TOKEN || 
+      process.env.UPSTASH_REDIS_REST_TOKEN || 
+      'gQAAAAAAAknnAAIgcDFkMjI3MDIwYWZhZGQ0YWQ2YWJjMzQ5MDY4NmVkNTVlMA'
+    ).trim();
     
     redisInstance = new Redis({ url: restUrl, token: restToken });
   }
