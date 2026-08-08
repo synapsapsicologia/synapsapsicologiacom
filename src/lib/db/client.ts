@@ -47,22 +47,22 @@ export interface Database {
 
 // --- CONFIGURACIÓN DE CONEXIÓN HTTP REST (100% SERVERLESS) ---
 
-const restUrl = (process.env.UPSTASH_REDIS_REST_URL || '').trim();
-const restToken = (process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
-
-// Instancia única (HTTP no sufre de límite de conexiones ni sockets zombis)
-// Usamos null condicionalmente para no crashear en build si faltan variables,
-// pero las peticiones devolverán error forzando el fallback offline
-export const redis = (restUrl && restToken) 
-  ? new Redis({ url: restUrl, token: restToken })
-  : null;
+let redisInstance: Redis | null = null;
 
 // Envoltorio para operaciones de base de datos
 async function executeDb<T>(operation: (client: Redis) => Promise<T>): Promise<T> {
-  if (!redis) {
-    throw new Error('Variables de entorno UPSTASH_REDIS_REST_URL y TOKEN faltantes.');
+  if (!redisInstance) {
+    const restUrl = (process.env.UPSTASH_REDIS_REST_URL || '').trim();
+    const restToken = (process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
+    
+    if (!restUrl || !restToken) {
+      throw new Error('Variables de entorno UPSTASH_REDIS_REST_URL y TOKEN faltantes.');
+    }
+    
+    redisInstance = new Redis({ url: restUrl, token: restToken });
   }
-  return await operation(redis);
+  
+  return await operation(redisInstance);
 }
 
 // --- FILE PATH DE RESPALDO LOCAL ---
