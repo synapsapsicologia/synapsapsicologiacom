@@ -52,11 +52,11 @@ let redisInstance: Redis | null = null;
 // Envoltorio para operaciones de base de datos
 async function executeDb<T>(operation: (client: Redis) => Promise<T>): Promise<T> {
   if (!redisInstance) {
-    const restUrl = (process.env.UPSTASH_REDIS_REST_URL || '').trim();
-    const restToken = (process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
+    const restUrl = (process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || '').trim();
+    const restToken = (process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
     
     if (!restUrl || !restToken) {
-      throw new Error('Variables de entorno UPSTASH_REDIS_REST_URL y TOKEN faltantes.');
+      throw new Error('Variables de entorno de Base de Datos faltantes (Vercel KV o Upstash).');
     }
     
     redisInstance = new Redis({ url: restUrl, token: restToken });
