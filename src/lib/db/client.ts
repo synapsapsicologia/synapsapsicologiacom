@@ -191,7 +191,7 @@ export async function updatePaciente(id: string, data: Partial<Paciente>): Promi
     });
   } catch (error) {
     console.error(`ERROR EN HTTP REDIS (updatePaciente ${id}):`, error);
-    throw new Error("No se pudo actualizar el paciente porque la base de datos está inaccesible.");
+    throw new Error(`Error BD (updatePaciente): ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -390,7 +390,7 @@ export async function updateDisponibilidad(id: string, data: Partial<Disponibili
     });
   } catch (error) {
     console.error(`ERROR EN HTTP REDIS (updateDisponibilidad ${id}):`, error);
-    throw new Error("No se pudo actualizar la disponibilidad porque la base de datos está inaccesible.");
+    throw new Error(`Error BD (updateDisponibilidad): ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -468,7 +468,7 @@ export async function setDiasNoLaborables(fechas: string[]): Promise<void> {
     });
   } catch (error) {
     console.error("ERROR EN HTTP REDIS (setDiasNoLaborables):", error);
-    throw new Error("No se actualizaron las fechas porque la base de datos está inaccesible.");
+    throw new Error(`Error BD (setDiasNoLaborables): ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
