@@ -35,12 +35,10 @@ async function main() {
   // Saneador de URL robusto
   let urlSaneada = redisUrl.trim();
   if (!urlSaneada.startsWith('redis://') && !urlSaneada.startsWith('rediss://')) {
-    // Limpiar barras inclinadas sobrantes al inicio y forzar protocolo seguro rediss://
     urlSaneada = urlSaneada.replace(/^\/+/, '');
     urlSaneada = `rediss://${urlSaneada}`;
   }
   
-  // Safe mask for logging
   const maskedUrl = urlSaneada.replace(/:[^:@]+@/, ':****@');
   console.log(`🔌 Connecting to Redis using URL: ${maskedUrl}`);
   
@@ -51,7 +49,6 @@ async function main() {
     maxRetriesPerRequest: 3,
     connectTimeout: 10000,
   });
-
   
   const dbPath = path.resolve(process.cwd(), 'src/lib/db/db.json');
   if (!fs.existsSync(dbPath)) {
@@ -76,32 +73,51 @@ async function main() {
   console.log(`- Non-working days (diasNoLaborables): ${diasNoLaborables.length}`);
   console.log(`- Blocked dates (fechasBloqueadas): ${fechasBloqueadas.length}`);
   
-  console.log('\n👥 --- Migrating Patients ---');
+  // --- MIGRATION STEPS ---
+  console.log('\n🧹 Clearing old Redis lists & sets...');
+  await redis.del(
+    'synapsa:pacientes:ids',
+    'synapsa:citas:ids',
+    'synapsa:disponibilidad',
+    'synapsa:diasNoLaborables',
+    'synapsa:fechasBloqueadas'
+  );
+  
+  console.log('\n👥 --- Migrating Patients (Granular) ---');
+  const pipeline = redis.multi();
   for (const paciente of pacientes) {
-    console.log(`   [Patient] ID: ${paciente.id} | Name: ${paciente.nombreCompleto} | Phone: ${paciente.telefono || 'N/A'}`);
+    console.log(`   [Patient] ID: ${paciente.id} | Name: ${paciente.nombreCompleto}`);
+    pipeline.set(`synapsa:paciente:${paciente.id}`, JSON.stringify(paciente));
+    pipeline.sadd('synapsa:pacientes:ids', paciente.id);
   }
   
-  console.log('\n📅 --- Migrating Appointments ---');
+  console.log('\n📅 --- Migrating Appointments (Granular) ---');
   for (const cita of citas) {
-    console.log(`   [Appointment] ID: ${cita.id} | Date: ${cita.fecha} | Time: ${cita.horaInicio}-${cita.horaFin} | Patient ID: ${cita.pacienteId}`);
+    console.log(`   [Appointment] ID: ${cita.id} | Date: ${cita.fecha} | Patient ID: ${cita.pacienteId}`);
+    pipeline.set(`synapsa:cita:${cita.id}`, JSON.stringify(cita));
+    pipeline.sadd('synapsa:citas:ids', cita.id);
+    pipeline.sadd(`synapsa:citas:fecha:${cita.fecha}`, cita.id);
   }
   
-  console.log('\n💾 Writing keys to cloud Redis...');
-  await Promise.all([
-    redis.set('synapsa:pacientes', JSON.stringify(pacientes)),
-    redis.set('synapsa:citas', JSON.stringify(citas)),
-    redis.set('synapsa:disponibilidad', JSON.stringify(disponibilidad)),
-    redis.set('synapsa:diasNoLaborables', JSON.stringify(diasNoLaborables)),
-    redis.set('synapsa:fechasBloqueadas', JSON.stringify(fechasBloqueadas))
-  ]);
+  console.log('\n⚙️ --- Migrating Availability & Date Blocks ---');
+  pipeline.set('synapsa:disponibilidad', JSON.stringify(disponibilidad));
+  if (diasNoLaborables.length > 0) {
+    pipeline.sadd('synapsa:diasNoLaborables', ...diasNoLaborables);
+  }
+  if (fechasBloqueadas.length > 0) {
+    pipeline.sadd('synapsa:fechasBloqueadas', ...fechasBloqueadas);
+  }
+  
+  console.log('\n💾 Executing pipeline write...');
+  await pipeline.exec();
   
   console.log('\n🔍 Verifying write...');
   const [pCount, cCount, dCount, nlCount, fbCount] = await Promise.all([
-    redis.get('synapsa:pacientes').then(res => JSON.parse(res || '[]').length),
-    redis.get('synapsa:citas').then(res => JSON.parse(res || '[]').length),
+    redis.smembers('synapsa:pacientes:ids').then(res => res.length),
+    redis.smembers('synapsa:citas:ids').then(res => res.length),
     redis.get('synapsa:disponibilidad').then(res => JSON.parse(res || '[]').length),
-    redis.get('synapsa:diasNoLaborables').then(res => JSON.parse(res || '[]').length),
-    redis.get('synapsa:fechasBloqueadas').then(res => JSON.parse(res || '[]').length)
+    redis.smembers('synapsa:diasNoLaborables').then(res => res.length),
+    redis.smembers('synapsa:fechasBloqueadas').then(res => res.length)
   ]);
   
   console.log(`\n✅ Verification:`);
@@ -112,7 +128,7 @@ async function main() {
   console.log(`- Blocked dates in Redis: ${fbCount} / Expected: ${fechasBloqueadas.length}`);
   
   if (pCount === pacientes.length && cCount === citas.length) {
-    console.log('\n🎉 Database successfully migrated to Redis cloud!');
+    console.log('\n🎉 Database successfully migrated to granular Redis!');
   } else {
     console.warn('\n⚠️ Warning: Mismatch between local data and Redis cloud data!');
   }
